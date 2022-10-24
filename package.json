@@ -1,0 +1,22 @@
+{
+  "name": "xplat",
+  "version": "1.0.0",
+  "description": "Cross platform/application utilities.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ucf-tower-app/xplat.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ucf-tower-app/xplat/issues"
+  },
+  "homepage": "https://github.com/ucf-tower-app/xplat#readme",
+  "dependencies": {
+    "firebase": "^9.12.1"
+  }
+}
