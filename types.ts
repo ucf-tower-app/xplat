@@ -10,9 +10,17 @@ export enum UserStatus {
     Developer = 5,
 }
 
-export class User {
-    private docRef: DocumentReference<DocumentData>;
-    private hasData: boolean;
+class LazyObject {
+    protected docRef: DocumentReference<DocumentData>;
+    protected hasData: boolean;
+
+    constructor(docRef: DocumentReference<DocumentData>) {
+        this.docRef = docRef;
+        this.hasData = false;
+    }
+}
+
+export class User extends LazyObject{
 
     private username: string | undefined;
     private passwordHash: string | undefined;
@@ -21,11 +29,6 @@ export class User {
     private sends: Send[] | undefined;
     private following: User[] | undefined;
     private followers: User[] | undefined;
-
-    constructor(docRef: DocumentReference<DocumentData>) {
-        this.docRef = docRef;
-        this.hasData = false;
-    }
 
     private async getData() {
         if(this.hasData) return;
@@ -81,18 +84,10 @@ export class User {
     }
 }
 
-export class Send {
-    private docRef: DocumentReference<DocumentData>;
-    private hasData: boolean;
-
+export class Send extends LazyObject{
     private attempts: number | undefined;
     private timestamp: Date | undefined;
     private route: Route | undefined;
-
-    constructor(docRef: DocumentReference<DocumentData>) {
-        this.docRef = docRef;
-        this.hasData = false;
-    }
 
     private async getData() {
         if(this.hasData) return;
@@ -124,21 +119,13 @@ export class Send {
     }
 }
 
-export class Route {
-    private docRef: DocumentReference<DocumentData>;
-    private hasData: boolean; 
-
+export class Route extends LazyObject{
     private name: string | undefined;
     private rating: string | undefined;
     private setter: User | undefined;
     private thread: Thread | undefined;
     private likes: User[] | undefined;
     private tags: Tag[] | undefined;
-
-    constructor(docRef: DocumentReference<DocumentData>) {
-        this.docRef = docRef;
-        this.hasData = false;
-    }
 
     private async getData() {
         if(this.hasData) return;
@@ -188,16 +175,8 @@ export class Route {
     }
 }
 
-export class Thread {
-    private docRef: DocumentReference<DocumentData>;
-    private hasData: boolean; 
-
+export class Thread extends LazyObject{
     private messages: Message[] | undefined;
-
-    constructor(docRef: DocumentReference<DocumentData>) {
-        this.docRef = docRef;
-        this.hasData = false;
-    }
 
     private async getData() {
         if(this.hasData) return;
@@ -217,19 +196,11 @@ export class Thread {
     }
 } 
 
-export class Message {
-    private docRef: DocumentReference<DocumentData>;
-    private hasData: boolean;
-
+export class Message extends LazyObject{
     private author: User | undefined;
     private timestamp: Date | undefined;
     private textContent: string | undefined;
     private likes: User[] | undefined;
-
-    constructor(docRef: DocumentReference<DocumentData>) {
-        this.docRef = docRef;
-        this.hasData = false;
-    }
 
     private async getData() {
         if(this.hasData) return;
@@ -267,17 +238,9 @@ export class Message {
     }
 }
 
-export class Tag {
-    private docRef: DocumentReference<DocumentData>;
-    private hasData: boolean; 
-
+export class Tag extends LazyObject{
     private name: string | undefined;
     private description: string | undefined;
-
-    constructor(docRef: DocumentReference<DocumentData>) {
-        this.docRef = docRef;
-        this.hasData = false;
-    }
 
     private async getData() {
         if(this.hasData) return;
@@ -303,17 +266,9 @@ export class Tag {
     }
 }
 
-export class Badge {
-    private docRef: DocumentReference<DocumentData>;
-    private hasData: boolean; 
-
+export class Badge extends LazyObject{
     private name: string | undefined;
     private description: string | undefined;
-
-    constructor(docRef: DocumentReference<DocumentData>) {
-        this.docRef = docRef;
-        this.hasData = false;
-    }
 
     private async getData() {
         if(this.hasData) return;
