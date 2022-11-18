@@ -1,6 +1,6 @@
 import { db } from './Firebase.js'
 import { doc } from "firebase/firestore";
-import { User, Send} from "./types"
+import { User, Send} from "./types/types"
 
 export async function testConnection() {
     const docRef = doc(db, 'users', 'dummy')
