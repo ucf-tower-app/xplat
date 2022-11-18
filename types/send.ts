@@ -8,9 +8,9 @@ export class Send extends LazyObject {
     private route: Route | undefined;
 
     private async getData() {
-        if(this.hasData) return;
+        if (this.hasData) return;
         const docSnap = await getDoc(this.docRef)
-        if(docSnap.exists()) {
+        if (docSnap.exists()) {
             const data = docSnap.data();
 
             this.attempts = data.attempts;
@@ -22,17 +22,17 @@ export class Send extends LazyObject {
     }
 
     public async getAttempts() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.attempts!;
     }
-    
+
     public async getTimestamp() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.timestamp!;
     }
 
     public async getRoute() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.route!;
     }
 }

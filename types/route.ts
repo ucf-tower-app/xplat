@@ -2,7 +2,7 @@ import { LazyObject } from "./common";
 import { DocumentReference, DocumentData, getDoc } from "firebase/firestore";
 import { User, Tag, Forum } from "./types";
 
-export class Route extends LazyObject{
+export class Route extends LazyObject {
     private name: string | undefined;
     private rating: string | undefined;
     private setter: User | undefined;
@@ -11,9 +11,9 @@ export class Route extends LazyObject{
     private tags: Tag[] | undefined;
 
     private async getData() {
-        if(this.hasData) return;
+        if (this.hasData) return;
         const docSnap = await getDoc(this.docRef)
-        if(docSnap.exists()) {
+        if (docSnap.exists()) {
             const data = docSnap.data();
 
             this.name = data.name;
@@ -28,32 +28,32 @@ export class Route extends LazyObject{
     }
 
     public async getName() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.name!;
     }
 
     public async getRating() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.rating!;
     }
-    
+
     public async getSetter() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.setter!;
     }
 
     public async getForum() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.forum!;
     }
 
     public async getLikes() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.likes!;
     }
 
     public async getTags() {
-        if(!this.hasData) await this.getData();
+        if (!this.hasData) await this.getData();
         return this.tags!;
     }
 }
