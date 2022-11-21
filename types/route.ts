@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject } from './common';
-import { DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
+import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { User, Tag, Forum } from './types';
 
 export class Route extends LazyObject {
@@ -13,10 +13,9 @@ export class Route extends LazyObject {
 
   private async getData() {
     if (this.hasData) return;
-    const docSnap = await getDoc(this.docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
 
+    const data = await this.getDocumentData();
+    if (data !== undefined) {
       this.name = data.name;
       this.rating = data.rating;
       this.setter = new User(data.setter);

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject } from './common';
-import { getDoc } from 'firebase/firestore';
 
 export class Tag extends LazyObject {
   private name: string | undefined;
@@ -8,10 +7,9 @@ export class Tag extends LazyObject {
 
   private async getData() {
     if (this.hasData) return;
-    const docSnap = await getDoc(this.docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
 
+    const data = await this.getDocumentData();
+    if (data !== undefined) {
       this.name = data.name;
       this.description = data.description;
 

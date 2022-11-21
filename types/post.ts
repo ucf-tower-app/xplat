@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject } from './common';
-import { DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
+import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { Comment, User } from './types';
 
 export class Post extends LazyObject {
@@ -12,10 +12,9 @@ export class Post extends LazyObject {
 
   private async getData() {
     if (this.hasData) return;
-    const docSnap = await getDoc(this.docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
 
+    const data = await this.getDocumentData();
+    if (data !== undefined) {
       this.author = new User(data.author);
       this.timestamp = data.timestamp;
       this.textContent = data.textContent;
