@@ -4,11 +4,11 @@ import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { Comment, User } from './types';
 
 export class Post extends LazyObject {
-  private author: User | undefined;
-  private timestamp: Date | undefined;
-  private textContent: string | undefined;
-  private likes: User[] | undefined;
-  private comments: Comment[] | undefined;
+  protected author: User | undefined;
+  protected timestamp: Date | undefined;
+  protected textContent: string | undefined;
+  protected likes: User[] | undefined;
+  protected comments: Comment[] | undefined;
 
   private async getData() {
     if (this.hasData) return;
@@ -52,5 +52,32 @@ export class Post extends LazyObject {
   public async getComments() {
     if (!this.hasData) await this.getData();
     return this.comments!;
+  }
+}
+
+export class PostMock extends Post {
+  constructor(
+    author: User,
+    timestamp: Date,
+    textContent: string,
+    likes: User[],
+    comments: Comment[]
+  ) {
+    super();
+    this.author = author;
+    this.timestamp = timestamp;
+    this.textContent = textContent;
+    this.likes = likes;
+    this.comments = comments;
+
+    this.hasData = true;
+  }
+
+  public addLikes(likes: User[]) {
+    this.likes = this.likes?.concat(likes);
+  }
+
+  public addComments(comments: Comment[]) {
+    this.comments = this.comments?.concat(comments);
   }
 }

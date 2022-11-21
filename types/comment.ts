@@ -3,9 +3,9 @@ import { LazyObject } from './common';
 import { User } from './types';
 
 export class Comment extends LazyObject {
-  private author: User | undefined;
-  private timestamp: Date | undefined;
-  private textContent: string | undefined;
+  protected author: User | undefined;
+  protected timestamp: Date | undefined;
+  protected textContent: string | undefined;
 
   private async getData() {
     if (this.hasData) return;
@@ -33,5 +33,16 @@ export class Comment extends LazyObject {
   public async getTextContent() {
     if (!this.hasData) await this.getData();
     return this.textContent!;
+  }
+}
+
+export class CommentMock extends Comment {
+  constructor(author: User, timestamp: Date, textContent: string) {
+    super();
+    this.author = author;
+    this.timestamp = timestamp;
+    this.textContent = textContent;
+
+    this.hasData = true;
   }
 }

@@ -3,9 +3,9 @@ import { LazyObject } from './common';
 import { Route } from './types';
 
 export class Send extends LazyObject {
-  private attempts: number | undefined;
-  private timestamp: Date | undefined;
-  private route: Route | undefined;
+  protected attempts: number | undefined;
+  protected timestamp: Date | undefined;
+  protected route: Route | undefined;
 
   private async getData() {
     if (this.hasData) return;
@@ -33,5 +33,16 @@ export class Send extends LazyObject {
   public async getRoute() {
     if (!this.hasData) await this.getData();
     return this.route!;
+  }
+}
+
+export class SendMock extends Send {
+  constructor(attempts: number, timestamp: Date, route: Route) {
+    super();
+    this.attempts = attempts;
+    this.timestamp = timestamp;
+    this.route = route;
+
+    this.hasData = true;
   }
 }

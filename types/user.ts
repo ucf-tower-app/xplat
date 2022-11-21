@@ -4,13 +4,13 @@ import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { Send } from './types';
 
 export class User extends LazyObject {
-  private username: string | undefined;
-  private passwordHash: string | undefined;
-  private bio: string | undefined;
-  private status: UserStatus | undefined;
-  private sends: Send[] | undefined;
-  private following: User[] | undefined;
-  private followers: User[] | undefined;
+  protected username: string | undefined;
+  protected passwordHash: string | undefined;
+  protected bio: string | undefined;
+  protected status: UserStatus | undefined;
+  protected sends: Send[] | undefined;
+  protected following: User[] | undefined;
+  protected followers: User[] | undefined;
 
   private async getData() {
     if (this.hasData) return;
@@ -68,5 +68,38 @@ export class User extends LazyObject {
   public async getFollowers() {
     if (!this.hasData) await this.getData();
     return this.followers!;
+  }
+}
+
+export class UserMock extends User {
+  constructor(
+    username: string,
+    passwordHash: string,
+    bio: string,
+    status: UserStatus,
+    sends: Send[],
+    following: User[],
+    followers: User[]
+  ) {
+    super();
+    this.username = username;
+    this.passwordHash = passwordHash;
+    this.bio = bio;
+    this.status = status;
+    this.sends = sends;
+    this.following = following;
+    this.followers = followers;
+  }
+
+  public addSends(sends: Send[]) {
+    this.sends = this.sends?.concat(sends);
+  }
+
+  public addFollowing(following: User[]) {
+    this.following = this.following?.concat(following);
+  }
+
+  public addFollowers(followers: User[]) {
+    this.followers = this.followers?.concat(followers);
   }
 }

@@ -4,7 +4,7 @@ import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { Post } from './types';
 
 export class Forum extends LazyObject {
-  private posts: Post[] | undefined;
+  protected posts: Post[] | undefined;
 
   private async getData() {
     if (this.hasData) return;
@@ -22,5 +22,18 @@ export class Forum extends LazyObject {
   public async getPosts() {
     if (!this.hasData) await this.getData();
     return this.posts!;
+  }
+}
+
+export class ForumMock extends Forum {
+  constructor(posts: Post[]) {
+    super();
+    this.posts = posts;
+
+    this.hasData = true;
+  }
+
+  public addPosts(posts: Post[]) {
+    this.posts = this.posts?.concat(posts);
   }
 }

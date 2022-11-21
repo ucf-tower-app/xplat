@@ -2,8 +2,8 @@
 import { LazyObject } from './common';
 
 export class Tag extends LazyObject {
-  private name: string | undefined;
-  private description: string | undefined;
+  protected name: string | undefined;
+  protected description: string | undefined;
 
   private async getData() {
     if (this.hasData) return;
@@ -25,5 +25,15 @@ export class Tag extends LazyObject {
   public async getDescription() {
     if (!this.hasData) await this.getData();
     return this.description!;
+  }
+}
+
+export class TagMock extends Tag {
+  constructor(name: string, description: string) {
+    super();
+    this.name = name;
+    this.description = description;
+
+    this.hasData = true;
   }
 }

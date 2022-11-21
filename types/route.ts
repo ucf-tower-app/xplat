@@ -4,12 +4,12 @@ import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { User, Tag, Forum } from './types';
 
 export class Route extends LazyObject {
-  private name: string | undefined;
-  private rating: string | undefined;
-  private setter: User | undefined;
-  private forum: Forum | undefined;
-  private likes: User[] | undefined;
-  private tags: Tag[] | undefined;
+  protected name: string | undefined;
+  protected rating: string | undefined;
+  protected setter: User | undefined;
+  protected forum: Forum | undefined;
+  protected likes: User[] | undefined;
+  protected tags: Tag[] | undefined;
 
   private async getData() {
     if (this.hasData) return;
@@ -59,5 +59,34 @@ export class Route extends LazyObject {
   public async getTags() {
     if (!this.hasData) await this.getData();
     return this.tags!;
+  }
+}
+
+export class RouteMock extends Route {
+  constructor(
+    name: string,
+    rating: string,
+    setter: User,
+    forum: Forum,
+    likes: User[],
+    tags: Tag[]
+  ) {
+    super();
+    this.name = name;
+    this.rating = rating;
+    this.setter = setter;
+    this.forum = forum;
+    this.likes = likes;
+    this.tags = tags;
+
+    this.hasData = true;
+  }
+
+  public addLikes(likes: User[]) {
+    this.likes = this.likes?.concat(likes);
+  }
+
+  public addTags(tags: Tag[]) {
+    this.tags = this.tags?.concat(tags);
   }
 }
