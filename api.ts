@@ -1,4 +1,4 @@
-import { auth, db } from './Firebase.js';
+import { auth, db } from './Firebase';
 import { doc } from 'firebase/firestore';
 import { User, Send } from './types/types';
 import {
