@@ -1,20 +1,16 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { DocumentData } from 'firebase/firestore';
 import { LazyObject } from './common';
 
 export class Badge extends LazyObject {
   protected name: string | undefined;
   protected description: string | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
+  protected initWithDocumentData(data: DocumentData) {
+    this.name = data.name;
+    this.description = data.description;
 
-    const data = await this.getDocumentData();
-    if (data !== undefined) {
-      this.name = data.name;
-      this.description = data.description;
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getName() {

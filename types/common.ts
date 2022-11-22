@@ -9,18 +9,22 @@ export enum UserStatus {
   Developer = 5,
 }
 
-export class LazyObject {
+export abstract class LazyObject {
   protected docRef: DocumentReference<DocumentData> | undefined;
   protected hasData: boolean;
 
-  protected async getDocumentData(): Promise<DocumentData> {
+  protected abstract initWithDocumentData(data: DocumentData): void;
+
+  protected async getData(): Promise<void> {
+    if(this.hasData) return Promise.resolve();
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');
 
     const docSnap = await getDoc(this.docRef);
-    if (docSnap.exists()) return Promise.resolve(docSnap.data());
+    if (!docSnap.exists()) return Promise.reject('Doc snap does not exist');
 
-    return Promise.reject('Doc snap does not exist');
+    await this.initWithDocumentData(docSnap.data());
+    return Promise.resolve();
   }
 
   constructor(docRef: DocumentReference<DocumentData> | undefined = undefined) {

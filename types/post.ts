@@ -10,23 +10,18 @@ export class Post extends LazyObject {
   protected likes: User[] | undefined;
   protected comments: Comment[] | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
+  protected initWithDocumentData(data: DocumentData) {
+    this.author = new User(data.author);
+    this.timestamp = data.timestamp;
+    this.textContent = data.textContent;
+    this.likes = data.likes.map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.comments = data.comments.map(
+      (ref: DocumentReference<DocumentData>) => new Comment(ref)
+    );
 
-    const data = await this.getDocumentData();
-    if (data !== undefined) {
-      this.author = new User(data.author);
-      this.timestamp = data.timestamp;
-      this.textContent = data.textContent;
-      this.likes = data.likes.map(
-        (ref: DocumentReference<DocumentData>) => new User(ref)
-      );
-      this.comments = data.comments.map(
-        (ref: DocumentReference<DocumentData>) => new Comment(ref)
-      );
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getAuthor() {

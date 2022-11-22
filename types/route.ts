@@ -11,24 +11,19 @@ export class Route extends LazyObject {
   protected likes: User[] | undefined;
   protected tags: Tag[] | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
+  protected initWithDocumentData(data: DocumentData): void {
+    this.name = data.name;
+    this.rating = data.rating;
+    this.setter = new User(data.setter);
+    this.forum = new Forum(data.forum);
+    this.likes = data.likes.map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.tags = data.tags.map(
+      (ref: DocumentReference<DocumentData>) => new Tag(ref)
+    );
 
-    const data = await this.getDocumentData();
-    if (data !== undefined) {
-      this.name = data.name;
-      this.rating = data.rating;
-      this.setter = new User(data.setter);
-      this.forum = new Forum(data.forum);
-      this.likes = data.likes.map(
-        (ref: DocumentReference<DocumentData>) => new User(ref)
-      );
-      this.tags = data.tags.map(
-        (ref: DocumentReference<DocumentData>) => new Tag(ref)
-      );
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getName() {

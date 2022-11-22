@@ -5,44 +5,32 @@ import { Send } from './types';
 
 export class User extends LazyObject {
   protected username: string | undefined;
-  protected passwordHash: string | undefined;
   protected bio: string | undefined;
   protected status: UserStatus | undefined;
   protected sends: Send[] | undefined;
   protected following: User[] | undefined;
   protected followers: User[] | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
+  protected initWithDocumentData(data: DocumentData): void {
+    this.username = data.username;
+    this.bio = data.bio;
+    this.status = data.status as UserStatus;
+    this.sends = data.sends.map(
+      (ref: DocumentReference<DocumentData>) => new Send(ref)
+    );
+    this.following = data.following.map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.followers = data.followers.map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
 
-    const data = await this.getDocumentData();
-    if (data !== undefined) {
-      this.username = data.username;
-      this.passwordHash = data.passwordHash;
-      this.bio = data.bio;
-      this.status = data.status as UserStatus;
-      this.sends = data.sends.map(
-        (ref: DocumentReference<DocumentData>) => new Send(ref)
-      );
-      this.following = data.following.map(
-        (ref: DocumentReference<DocumentData>) => new User(ref)
-      );
-      this.followers = data.followers.map(
-        (ref: DocumentReference<DocumentData>) => new User(ref)
-      );
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getUsername() {
     if (!this.hasData) await this.getData();
     return this.username!;
-  }
-
-  public async getPasswordHash() {
-    if (!this.hasData) await this.getData();
-    return this.passwordHash!;
   }
 
   public async getBio() {
@@ -74,7 +62,6 @@ export class User extends LazyObject {
 export class UserMock extends User {
   constructor(
     username: string,
-    passwordHash: string,
     bio: string,
     status: UserStatus,
     sends: Send[],
@@ -83,7 +70,6 @@ export class UserMock extends User {
   ) {
     super();
     this.username = username;
-    this.passwordHash = passwordHash;
     this.bio = bio;
     this.status = status;
     this.sends = sends;

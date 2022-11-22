@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { DocumentData } from 'firebase/firestore';
 import { LazyObject } from './common';
 import { Route } from './types';
 
@@ -7,17 +8,12 @@ export class Send extends LazyObject {
   protected timestamp: Date | undefined;
   protected route: Route | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
+  protected initWithDocumentData(data: DocumentData): void {
+    this.attempts = data.attempts;
+    this.timestamp = data.timestamp;
+    this.route = new Route(data.route);
 
-    const data = await this.getDocumentData();
-    if (data !== undefined) {
-      this.attempts = data.attempts;
-      this.timestamp = data.timestamp;
-      this.route = new Route(data.route);
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getAttempts() {

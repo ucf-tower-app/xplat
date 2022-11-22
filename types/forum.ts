@@ -6,17 +6,12 @@ import { Post } from './types';
 export class Forum extends LazyObject {
   protected posts: Post[] | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
+  protected initWithDocumentData(data: DocumentData) {
+    this.posts = data.posts.map(
+      (ref: DocumentReference<DocumentData>) => new Post(ref)
+    );
 
-    const data = await this.getDocumentData();
-    if (data !== undefined) {
-      this.posts = data.posts.map(
-        (ref: DocumentReference<DocumentData>) => new Post(ref)
-      );
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getPosts() {
