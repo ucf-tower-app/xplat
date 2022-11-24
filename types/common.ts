@@ -1,4 +1,4 @@
-import { DocumentReference, DocumentData } from 'firebase/firestore';
+import { DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
 
 export enum UserStatus {
   Unverified = 0,
@@ -9,11 +9,25 @@ export enum UserStatus {
   Developer = 5,
 }
 
-export class LazyObject {
-  protected docRef: DocumentReference<DocumentData>;
+export abstract class LazyObject {
+  protected docRef: DocumentReference<DocumentData> | undefined;
   protected hasData: boolean;
 
-  constructor(docRef: DocumentReference<DocumentData>) {
+  protected abstract initWithDocumentData(data: DocumentData): void;
+
+  protected async getData(): Promise<void> {
+    if (this.hasData) return Promise.resolve();
+    if (this.docRef === undefined)
+      return Promise.reject('Document reference is undefined');
+
+    const docSnap = await getDoc(this.docRef);
+    if (!docSnap.exists()) return Promise.reject('Doc snap does not exist');
+
+    await this.initWithDocumentData(docSnap.data());
+    return Promise.resolve();
+  }
+
+  constructor(docRef: DocumentReference<DocumentData> | undefined = undefined) {
     this.docRef = docRef;
     this.hasData = false;
   }

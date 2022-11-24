@@ -1,25 +1,19 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { DocumentData } from 'firebase/firestore';
 import { LazyObject } from './common';
-import { getDoc } from 'firebase/firestore';
 import { User } from './types';
 
 export class Comment extends LazyObject {
-  private author: User | undefined;
-  private timestamp: Date | undefined;
-  private textContent: string | undefined;
+  protected author: User | undefined;
+  protected timestamp: Date | undefined;
+  protected textContent: string | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
-    const docSnap = await getDoc(this.docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
+  protected initWithDocumentData(data: DocumentData) {
+    this.author = new User(data.author);
+    this.timestamp = data.timestamp;
+    this.textContent = data.textContent;
 
-      this.author = new User(data.author);
-      this.timestamp = data.timestamp;
-      this.textContent = data.textContent;
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getAuthor() {
@@ -35,5 +29,16 @@ export class Comment extends LazyObject {
   public async getTextContent() {
     if (!this.hasData) await this.getData();
     return this.textContent!;
+  }
+}
+
+export class CommentMock extends Comment {
+  constructor(author: User, timestamp: Date, textContent: string) {
+    super();
+    this.author = author;
+    this.timestamp = timestamp;
+    this.textContent = textContent;
+
+    this.hasData = true;
   }
 }

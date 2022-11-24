@@ -1,27 +1,34 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject } from './common';
-import { DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
+import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { Post } from './types';
 
 export class Forum extends LazyObject {
-  private posts: Post[] | undefined;
+  protected posts: Post[] | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
-    const docSnap = await getDoc(this.docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
+  protected initWithDocumentData(data: DocumentData) {
+    this.posts = data.posts.map(
+      (ref: DocumentReference<DocumentData>) => new Post(ref)
+    );
 
-      this.posts = data.posts.map(
-        (ref: DocumentReference<DocumentData>) => new Post(ref)
-      );
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getPosts() {
     if (!this.hasData) await this.getData();
     return this.posts!;
+  }
+}
+
+export class ForumMock extends Forum {
+  constructor(posts: Post[]) {
+    super();
+    this.posts = posts;
+
+    this.hasData = true;
+  }
+
+  public addPosts(posts: Post[]) {
+    this.posts = this.posts?.concat(posts);
   }
 }

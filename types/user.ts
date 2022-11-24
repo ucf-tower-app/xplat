@@ -1,49 +1,36 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject, UserStatus } from './common';
-import { DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
+import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { Send } from './types';
 
 export class User extends LazyObject {
-  private username: string | undefined;
-  private passwordHash: string | undefined;
-  private bio: string | undefined;
-  private status: UserStatus | undefined;
-  private sends: Send[] | undefined;
-  private following: User[] | undefined;
-  private followers: User[] | undefined;
+  protected username: string | undefined;
+  protected bio: string | undefined;
+  protected status: UserStatus | undefined;
+  protected sends: Send[] | undefined;
+  protected following: User[] | undefined;
+  protected followers: User[] | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
-    const docSnap = await getDoc(this.docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
+  protected initWithDocumentData(data: DocumentData): void {
+    this.username = data.username;
+    this.bio = data.bio;
+    this.status = data.status as UserStatus;
+    this.sends = data.sends.map(
+      (ref: DocumentReference<DocumentData>) => new Send(ref)
+    );
+    this.following = data.following.map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.followers = data.followers.map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
 
-      this.username = data.username;
-      this.passwordHash = data.passwordHash;
-      this.bio = data.bio;
-      this.status = data.status as UserStatus;
-      this.sends = data.sends.map(
-        (ref: DocumentReference<DocumentData>) => new Send(ref)
-      );
-      this.following = data.following.map(
-        (ref: DocumentReference<DocumentData>) => new User(ref)
-      );
-      this.followers = data.followers.map(
-        (ref: DocumentReference<DocumentData>) => new User(ref)
-      );
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getUsername() {
     if (!this.hasData) await this.getData();
     return this.username!;
-  }
-
-  public async getPasswordHash() {
-    if (!this.hasData) await this.getData();
-    return this.passwordHash!;
   }
 
   public async getBio() {
@@ -69,5 +56,36 @@ export class User extends LazyObject {
   public async getFollowers() {
     if (!this.hasData) await this.getData();
     return this.followers!;
+  }
+}
+
+export class UserMock extends User {
+  constructor(
+    username: string,
+    bio: string,
+    status: UserStatus,
+    sends: Send[],
+    following: User[],
+    followers: User[]
+  ) {
+    super();
+    this.username = username;
+    this.bio = bio;
+    this.status = status;
+    this.sends = sends;
+    this.following = following;
+    this.followers = followers;
+  }
+
+  public addSends(sends: Send[]) {
+    this.sends = this.sends?.concat(sends);
+  }
+
+  public addFollowing(following: User[]) {
+    this.following = this.following?.concat(following);
+  }
+
+  public addFollowers(followers: User[]) {
+    this.followers = this.followers?.concat(followers);
   }
 }

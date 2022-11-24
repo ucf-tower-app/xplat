@@ -1,22 +1,16 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { DocumentData } from 'firebase/firestore';
 import { LazyObject } from './common';
-import { getDoc } from 'firebase/firestore';
 
 export class Badge extends LazyObject {
-  private name: string | undefined;
-  private description: string | undefined;
+  protected name: string | undefined;
+  protected description: string | undefined;
 
-  private async getData() {
-    if (this.hasData) return;
-    const docSnap = await getDoc(this.docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
+  protected initWithDocumentData(data: DocumentData) {
+    this.name = data.name;
+    this.description = data.description;
 
-      this.name = data.name;
-      this.description = data.description;
-
-      this.hasData = true;
-    }
+    this.hasData = true;
   }
 
   public async getName() {
@@ -27,5 +21,15 @@ export class Badge extends LazyObject {
   public async getDescription() {
     if (!this.hasData) await this.getData();
     return this.description!;
+  }
+}
+
+export class BadgeMock extends Badge {
+  constructor(name: string, description: string) {
+    super();
+    this.name = name;
+    this.description = description;
+
+    this.hasData = true;
   }
 }
