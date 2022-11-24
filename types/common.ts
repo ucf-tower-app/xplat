@@ -10,12 +10,12 @@ export enum UserStatus {
 }
 
 export abstract class LazyObject {
-  protected docRef: DocumentReference<DocumentData> | undefined;
+  public docRef: DocumentReference<DocumentData> | undefined;
   protected hasData: boolean;
 
   protected abstract initWithDocumentData(data: DocumentData): void;
 
-  protected async getData(): Promise<void> {
+  public async getData(): Promise<void> {
     if (this.hasData) return Promise.resolve();
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');

@@ -4,24 +4,26 @@ import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { Send } from './types';
 
 export class User extends LazyObject {
-  protected username: string | undefined;
-  protected bio: string | undefined;
-  protected status: UserStatus | undefined;
-  protected sends: Send[] | undefined;
-  protected following: User[] | undefined;
-  protected followers: User[] | undefined;
+  protected username?: string;
+  protected email?: string;
+  protected bio?: string;
+  protected status?: UserStatus;
+  protected sends?: Send[];
+  protected following?: User[];
+  protected followers?: User[];
 
   protected initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
+    this.email = data.email;
     this.bio = data.bio;
     this.status = data.status as UserStatus;
-    this.sends = data.sends.map(
+    this.sends = (data.sends || []).map(
       (ref: DocumentReference<DocumentData>) => new Send(ref)
     );
-    this.following = data.following.map(
+    this.following = (data.following || []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
-    this.followers = data.followers.map(
+    this.followers = (data.followers || []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
 
