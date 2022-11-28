@@ -17,13 +17,13 @@ export class User extends LazyObject {
     this.email = data.email;
     this.bio = data.bio;
     this.status = data.status as UserStatus;
-    this.sends = (data.sends || []).map(
+    this.sends = (data.sends ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Send(ref)
     );
-    this.following = (data.following || []).map(
+    this.following = (data.following ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
-    this.followers = (data.followers || []).map(
+    this.followers = (data.followers ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
 
