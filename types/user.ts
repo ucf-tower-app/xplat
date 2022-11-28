@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject, UserStatus } from './common';
-import { DocumentReference, DocumentData } from 'firebase/firestore';
+import { DocumentReference, DocumentData, setDoc } from 'firebase/firestore';
 import { Send } from './types';
 
 export class User extends LazyObject {
@@ -28,6 +28,42 @@ export class User extends LazyObject {
     );
 
     this.hasData = true;
+  }
+
+  private async pushUpdateToFirestore() {
+    const data: DocumentData = {
+      username: this.username,
+      email: this.email,
+      bio: this.bio,
+      status: this.status! as number,
+      sends: this.sends?.map((send: Send) => send.docRef),
+      following: this.following?.map((user: User) => user.docRef),
+      followers: this.followers?.map((user: User) => user.docRef),
+    };
+    await setDoc(this.docRef!, data, { merge: true });
+  }
+
+  public async followUser(other: User) {
+    if (
+      (await this.getFollowing()).some(
+        (user: User) => user.docRef?.path === other.docRef?.path
+      )
+    )
+      return;
+    this.following?.push(other);
+    await other.addFollower(this);
+    await this.pushUpdateToFirestore();
+  }
+
+  private async addFollower(other: User) {
+    if (
+      (await this.getFollowers()).some(
+        (user: User) => user.docRef?.path === other.docRef?.path
+      )
+    )
+      return;
+    this.followers?.push(other);
+    await this.pushUpdateToFirestore();
   }
 
   public async getUsername() {
