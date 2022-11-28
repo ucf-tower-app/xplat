@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { auth, db } from './Firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { User } from './types/types';
 import {
   createUserWithEmailAndPassword,
@@ -42,6 +42,16 @@ export async function getCurrentUser() {
 
 export function getUserById(id: string) {
   return new User(doc(db, 'users', id));
+}
+
+export async function getUserByUsername(username: string) {
+  return getDoc(doc(db, 'caches', 'users'))
+    .then((snap) => {
+      const map = snap.get('usernameToUserID');
+      if (map[username]) return getUserById(map[username]);
+      else return undefined;
+    })
+    .catch(() => undefined);
 }
 
 export async function signIn(email: string, password: string) {
