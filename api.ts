@@ -16,6 +16,10 @@ import {
 } from 'firebase/auth';
 import { UserStatus } from './types/common';
 
+export function isKnightsEmail(email: string): boolean {
+  return email.endsWith('@knights.ucf.edu') || email.endsWith('@ucf.edu');
+}
+
 export async function createUser(
   email: string,
   password: string,
@@ -49,10 +53,14 @@ export async function getCurrentUser() {
   const res = new User(doc(db, 'users', auth.currentUser!.uid));
   if (
     auth.currentUser.emailVerified &&
-    (await res.getStatus()) === UserStatus.Unverified
+    (await res.getStatus()) === UserStatus.Unverified &&
+    isKnightsEmail(await res.getEmail())
   ) {
-    await setDoc(res.docRef!, { status: UserStatus.Verified }, { merge: true });
-    return new User(doc(db, 'users', auth.currentUser.uid));
+    return runTransaction(db, async (transaction) => {
+      transaction.update(res.docRef!, {
+        status: UserStatus.Verified,
+      });
+    }).then(() => new User(doc(db, 'users', auth.currentUser!.uid)));
   } else return res;
 }
 

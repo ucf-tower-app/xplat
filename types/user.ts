@@ -82,6 +82,11 @@ export class User extends LazyObject {
     return this.username!;
   }
 
+  public async getEmail() {
+    if (!this.hasData) await this.getData();
+    return this.email!;
+  }
+
   public async getBio() {
     if (!this.hasData) await this.getData();
     return this.bio!;
