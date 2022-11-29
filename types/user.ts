@@ -38,19 +38,6 @@ export class User extends LazyObject {
     this.hasData = true;
   }
 
-  private async pushUpdateToFirestore() {
-    const data: DocumentData = {
-      username: this.username,
-      email: this.email,
-      bio: this.bio,
-      status: this.status! as number,
-      sends: this.sends?.map((send: Send) => send.docRef),
-      following: this.following?.map((user: User) => user.docRef),
-      followers: this.followers?.map((user: User) => user.docRef),
-    };
-    await setDoc(this.docRef!, data, { merge: true });
-  }
-
   public async followUser(other: User) {
     // If we already have data, might as well run the free short-circuit check.
     // We're going to run it anyways during the transaction, but if we can avoid it,
