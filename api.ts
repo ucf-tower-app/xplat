@@ -1,11 +1,18 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { auth, db } from './Firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  runTransaction,
+  setDoc,
+  Transaction,
+} from 'firebase/firestore';
 import { User } from './types/types';
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   signInWithEmailAndPassword,
+  UserCredential,
 } from 'firebase/auth';
 import { UserStatus } from './types/common';
 
@@ -14,17 +21,26 @@ export async function createUser(
   password: string,
   username: string
 ) {
-  await createUserWithEmailAndPassword(auth, email, password);
+  return createUserWithEmailAndPassword(auth, email, password).then(
+    (cred: UserCredential) => {
+      return runTransaction(db, async (transaction: Transaction) => {
+        const newDocRef = doc(db, 'users', cred.user.uid);
+        const cacheDocRef = doc(db, 'caches', 'users');
 
-  if (auth.currentUser === null)
-    return Promise.reject('Failed to authenticate');
+        const map = (await transaction.get(cacheDocRef)).data()!
+          .usernameToUserID;
+        map[username] = cred.user.uid;
 
-  await setDoc(doc(db, 'users', auth.currentUser!.uid), {
-    username: username,
-    email: email,
-    bio: "I'm a new climber!",
-    status: UserStatus.Unverified,
-  });
+        transaction.update(cacheDocRef, { usernameToUserID: map });
+        transaction.set(newDocRef, {
+          username: username,
+          email: email,
+          bio: "I'm a new climber!",
+          status: UserStatus.Unverified,
+        });
+      });
+    }
+  );
 }
 
 export async function getCurrentUser() {
@@ -36,7 +52,7 @@ export async function getCurrentUser() {
     (await res.getStatus()) === UserStatus.Unverified
   ) {
     await setDoc(res.docRef!, { status: UserStatus.Verified }, { merge: true });
-    return new User(doc(db, 'users', auth.currentUser!.uid));
+    return new User(doc(db, 'users', auth.currentUser.uid));
   } else return res;
 }
 
