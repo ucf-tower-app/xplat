@@ -23,8 +23,7 @@ export abstract class LazyObject {
     const docSnap = await getDoc(this.docRef);
     if (!docSnap.exists()) return Promise.reject('Doc snap does not exist');
 
-    await this.initWithDocumentData(docSnap.data());
-    return Promise.resolve();
+    return this.initWithDocumentData(docSnap.data());
   }
 
   constructor(docRef: DocumentReference<DocumentData> | undefined = undefined) {

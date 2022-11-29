@@ -1,7 +1,15 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject, UserStatus } from './common';
-import { DocumentReference, DocumentData, setDoc } from 'firebase/firestore';
+import {
+  DocumentReference,
+  DocumentData,
+  setDoc,
+  Transaction,
+} from 'firebase/firestore';
+import { runTransaction } from 'firebase/firestore';
 import { Send } from './types';
+import { db } from '../Firebase';
+import { transcode } from 'buffer';
 
 export class User extends LazyObject {
   protected username?: string;
@@ -44,26 +52,44 @@ export class User extends LazyObject {
   }
 
   public async followUser(other: User) {
+    // If we already have data, might as well run the free short-circuit check.
+    // We're going to run it anyways during the transaction, but if we can avoid it,
+    // might as well do it now.
     if (
+      this.hasData &&
       (await this.getFollowing()).some(
         (user: User) => user.docRef?.path === other.docRef?.path
       )
     )
       return;
-    this.following?.push(other);
-    await other.addFollower(this);
-    await this.pushUpdateToFirestore();
-  }
 
-  private async addFollower(other: User) {
-    if (
-      (await this.getFollowers()).some(
-        (user: User) => user.docRef?.path === other.docRef?.path
+    return runTransaction(db, async (transaction: Transaction) => {
+      const thisSnap = await transaction.get(this.docRef!);
+      const otherSnap = await transaction.get(other.docRef!);
+
+      this.initWithDocumentData(thisSnap.data()!);
+      other.initWithDocumentData(otherSnap.data()!);
+
+      if (
+        this.following?.some(
+          (user: User) => user.docRef?.path === other.docRef?.path
+        ) ||
+        other.followers?.some(
+          (user: User) => user.docRef?.path === this.docRef?.path
+        )
       )
-    )
-      return;
-    this.followers?.push(other);
-    await this.pushUpdateToFirestore();
+        return;
+
+      this.following?.push(other);
+      other.followers?.push(other);
+
+      transaction.update(this.docRef!, {
+        following: this.following!.map((user: User) => user.docRef),
+      });
+      transaction.update(other.docRef!, {
+        followers: other.followers!.map((user: User) => user.docRef),
+      });
+    });
   }
 
   public async getUsername() {
