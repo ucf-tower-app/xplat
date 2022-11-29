@@ -3,13 +3,11 @@ import { LazyObject, UserStatus } from './common';
 import {
   DocumentReference,
   DocumentData,
-  setDoc,
   Transaction,
 } from 'firebase/firestore';
 import { runTransaction } from 'firebase/firestore';
 import { Send } from './types';
 import { db } from '../Firebase';
-import { transcode } from 'buffer';
 
 export class User extends LazyObject {
   protected username?: string;
