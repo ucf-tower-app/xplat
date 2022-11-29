@@ -20,10 +20,10 @@ export abstract class LazyObject {
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');
 
-    const docSnap = await getDoc(this.docRef);
-    if (!docSnap.exists()) return Promise.reject('Doc snap does not exist');
-
-    return this.initWithDocumentData(docSnap.data());
+    return getDoc(this.docRef).then((docSnap) => {
+      if (!docSnap.exists()) return Promise.reject('Doc snap does not exist');
+      else this.initWithDocumentData(docSnap.data());
+    });
   }
 
   constructor(docRef: DocumentReference<DocumentData> | undefined = undefined) {

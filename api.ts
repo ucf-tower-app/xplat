@@ -71,16 +71,13 @@ export async function getUserByUsername(username: string) {
 }
 
 export async function signIn(email: string, password: string) {
-  await signInWithEmailAndPassword(auth, email, password);
+  return signInWithEmailAndPassword(auth, email, password);
 }
 
 export async function sendAuthEmail() {
   if (auth.currentUser != null) {
     if (auth.currentUser.emailVerified)
-      console.log('Already verified, not sending email.');
-    else
-      sendEmailVerification(auth.currentUser).catch((error) => {
-        console.log('Failed to send the email: ' + error.toString());
-      });
-  } else console.log('Not signed in!');
+      return Promise.reject('Already verified!');
+    else return sendEmailVerification(auth.currentUser);
+  } else return Promise.reject('Not signed in!');
 }
