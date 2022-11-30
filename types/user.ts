@@ -66,7 +66,7 @@ export class User extends LazyObject {
         return;
 
       this.following?.push(other);
-      other.followers?.push(other);
+      other.followers?.push(this);
 
       transaction.update(this.docRef!, {
         following: this.following!.map((user: User) => user.docRef),
