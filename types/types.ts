@@ -5,3 +5,4 @@ export { Tag } from './tag';
 export { Forum } from './forum';
 export { Post } from './post';
 export { Comment } from './comment';
+export { UserStatus } from './common';

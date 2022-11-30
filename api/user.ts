@@ -7,8 +7,7 @@ import {
   signInWithEmailAndPassword,
   UserCredential,
 } from 'firebase/auth';
-import { User } from '../types/types';
-import { UserStatus } from '../types/common';
+import { User, UserStatus } from '../types/types';
 
 export function isKnightsEmail(email: string): boolean {
   return email.endsWith('@knights.ucf.edu') || email.endsWith('@ucf.edu');
