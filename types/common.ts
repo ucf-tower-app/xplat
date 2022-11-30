@@ -1,4 +1,5 @@
 import { DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
+import { getUrl } from '../api';
 
 export enum UserStatus {
   Unverified = 0,
@@ -29,5 +30,21 @@ export abstract class LazyObject {
   constructor(docRef: DocumentReference<DocumentData> | undefined = undefined) {
     this.docRef = docRef;
     this.hasData = false;
+  }
+}
+
+export class LazyStaticImage {
+  protected imagePath: string;
+  protected imageUrl?: string;
+
+  constructor(imagePath: string) {
+    this.imagePath = imagePath;
+  }
+
+  public async getImageUrl() {
+    if (this.imageUrl === undefined) {
+      this.imageUrl = await getUrl(this.imagePath);
+    }
+    return this.imageUrl;
   }
 }

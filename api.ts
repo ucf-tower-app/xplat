@@ -1,12 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { auth, db } from './Firebase';
-import {
-  doc,
-  getDoc,
-  runTransaction,
-  setDoc,
-  Transaction,
-} from 'firebase/firestore';
+import { auth, db, storage } from './Firebase';
+import { doc, getDoc, runTransaction, Transaction } from 'firebase/firestore';
 import { User } from './types/types';
 import {
   createUserWithEmailAndPassword,
@@ -15,6 +9,7 @@ import {
   UserCredential,
 } from 'firebase/auth';
 import { UserStatus } from './types/common';
+import { getDownloadURL, ref } from 'firebase/storage';
 
 export function isKnightsEmail(email: string): boolean {
   return email.endsWith('@knights.ucf.edu') || email.endsWith('@ucf.edu');
@@ -88,4 +83,8 @@ export async function sendAuthEmail() {
       return Promise.reject('Already verified!');
     else return sendEmailVerification(auth.currentUser);
   } else return Promise.reject('Not signed in!');
+}
+
+export async function getUrl(path: string) {
+  return getDownloadURL(ref(storage, path));
 }

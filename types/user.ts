@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject, UserStatus } from './common';
+import { LazyObject, LazyStaticImage, UserStatus } from './common';
 import {
   DocumentReference,
   DocumentData,
@@ -17,6 +17,7 @@ export class User extends LazyObject {
   protected sends?: Send[];
   protected following?: User[];
   protected followers?: User[];
+  protected avatar?: LazyStaticImage;
 
   protected initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -32,6 +33,7 @@ export class User extends LazyObject {
     this.followers = (data.followers ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
+    this.avatar = new LazyStaticImage(data.avatarPath ?? 'avatars/climber.png');
 
     this.hasData = true;
   }
@@ -75,6 +77,11 @@ export class User extends LazyObject {
         followers: other.followers!.map((user: User) => user.docRef),
       });
     });
+  }
+
+  public async getAvatarUrl() {
+    if (!this.hasData) await this.getData();
+    return this.avatar!.getImageUrl();
   }
 
   public async getUsername() {
