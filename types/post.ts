@@ -1,25 +1,39 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject } from './common';
+import { LazyObject, LazyStaticImage } from './common';
 import { DocumentReference, DocumentData } from 'firebase/firestore';
-import { Comment, User } from './types';
+import { Comment, Forum, User } from './types';
 
 export class Post extends LazyObject {
-  protected author: User | undefined;
-  protected timestamp: Date | undefined;
-  protected textContent: string | undefined;
-  protected likes: User[] | undefined;
-  protected comments: Comment[] | undefined;
+  // Expected and required when getting data
+  protected author?: User;
+  protected timestamp?: Date;
+  protected textContent?: string;
+  protected forum?: Forum;
+
+  // Filled with defaults if not present when getting data
+  protected likes?: User[];
+  protected comments?: Comment[];
+  protected _isSaved?: boolean;
+
+  // Might remain undefined even if has data
+  protected imageContent?: LazyStaticImage;
 
   protected initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
     this.timestamp = data.timestamp;
     this.textContent = data.textContent;
-    this.likes = data.likes.map(
+    this.forum = new Forum(data.forum);
+
+    this.likes = (data.likes ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
-    this.comments = data.comments.map(
+    this.comments = (data.comments ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Comment(ref)
     );
+    this._isSaved = data._isSaved ?? false;
+
+    if (data.imageContent)
+      this.imageContent = new LazyStaticImage(data.imageContent);
 
     this.hasData = true;
   }
@@ -47,6 +61,26 @@ export class Post extends LazyObject {
   public async getComments() {
     if (!this.hasData) await this.getData();
     return this.comments!;
+  }
+
+  public async getForum() {
+    if (!this.hasData) await this.getData();
+    return this.forum!;
+  }
+
+  public async hasImageContent() {
+    if (!this.hasData) await this.getData();
+    return this.imageContent !== undefined;
+  }
+
+  public async getImageContentUrl() {
+    if (!this.hasData) await this.getData();
+    return this.imageContent?.getImageUrl();
+  }
+
+  public async isSaved() {
+    if (!this.hasData) await this.getData();
+    return this._isSaved!;
   }
 }
 
