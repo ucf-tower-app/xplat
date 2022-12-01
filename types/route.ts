@@ -45,9 +45,14 @@ export class Route extends LazyObject {
     return this.rating!;
   }
 
+  public async hasSetter() {
+    if (!this.hasData) await this.getData();
+    return this.setter !== undefined;
+  }
+
   public async getSetter() {
     if (!this.hasData) await this.getData();
-    return this.setter!;
+    return this.setter;
   }
 
   public async getForum() {
