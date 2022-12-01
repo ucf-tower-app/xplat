@@ -4,24 +4,33 @@ import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { User, Tag, Forum } from './types';
 
 export class Route extends LazyObject {
-  protected name: string | undefined;
-  protected rating: string | undefined;
-  protected setter: User | undefined;
-  protected forum: Forum | undefined;
-  protected likes: User[] | undefined;
-  protected tags: Tag[] | undefined;
+  // Expected and required when getting data
+  protected name?: string;
+  protected rating?: string;
+  protected forum?: Forum;
+
+  // Filled with defaults if not present when getting data
+  protected likes?: User[];
+  protected tags?: Tag[];
+  protected _isActive?: boolean;
+
+  // Might remain undefined even if has data
+  protected setter?: User;
 
   protected initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
     this.rating = data.rating;
-    this.setter = new User(data.setter);
     this.forum = new Forum(data.forum);
-    this.likes = data.likes.map(
+
+    this.likes = (data.likes ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
-    this.tags = data.tags.map(
+    this.tags = (data.tags ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Tag(ref)
     );
+    this._isActive = data.isActive ?? false;
+
+    if (data.setter) this.setter = new User(data.setter);
 
     this.hasData = true;
   }
@@ -54,6 +63,11 @@ export class Route extends LazyObject {
   public async getTags() {
     if (!this.hasData) await this.getData();
     return this.tags!;
+  }
+
+  public async isActive() {
+    if (!this.hasData) await this.getData();
+    return this._isActive!;
   }
 }
 
