@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject, UserStatus } from './common';
-import { DocumentReference, DocumentData, setDoc } from 'firebase/firestore';
+import {
+  DocumentReference,
+  DocumentData,
+  Transaction,
+} from 'firebase/firestore';
+import { runTransaction } from 'firebase/firestore';
 import { Send } from './types';
+import { db } from '../Firebase';
 
 export class User extends LazyObject {
   protected username?: string;
@@ -30,45 +36,55 @@ export class User extends LazyObject {
     this.hasData = true;
   }
 
-  private async pushUpdateToFirestore() {
-    const data: DocumentData = {
-      username: this.username,
-      email: this.email,
-      bio: this.bio,
-      status: this.status! as number,
-      sends: this.sends?.map((send: Send) => send.docRef),
-      following: this.following?.map((user: User) => user.docRef),
-      followers: this.followers?.map((user: User) => user.docRef),
-    };
-    await setDoc(this.docRef!, data, { merge: true });
-  }
-
   public async followUser(other: User) {
+    // If we already have data, might as well run the free short-circuit check.
+    // We're going to run it anyways during the transaction, but if we can avoid it,
+    // might as well do it now.
     if (
+      this.hasData &&
       (await this.getFollowing()).some(
         (user: User) => user.docRef?.path === other.docRef?.path
       )
     )
       return;
-    this.following?.push(other);
-    await other.addFollower(this);
-    await this.pushUpdateToFirestore();
-  }
 
-  private async addFollower(other: User) {
-    if (
-      (await this.getFollowers()).some(
-        (user: User) => user.docRef?.path === other.docRef?.path
+    return runTransaction(db, async (transaction: Transaction) => {
+      const thisSnap = await transaction.get(this.docRef!);
+      const otherSnap = await transaction.get(other.docRef!);
+
+      this.initWithDocumentData(thisSnap.data()!);
+      other.initWithDocumentData(otherSnap.data()!);
+
+      if (
+        this.following?.some(
+          (user: User) => user.docRef?.path === other.docRef?.path
+        ) ||
+        other.followers?.some(
+          (user: User) => user.docRef?.path === this.docRef?.path
+        )
       )
-    )
-      return;
-    this.followers?.push(other);
-    await this.pushUpdateToFirestore();
+        return;
+
+      this.following?.push(other);
+      other.followers?.push(this);
+
+      transaction.update(this.docRef!, {
+        following: this.following!.map((user: User) => user.docRef),
+      });
+      transaction.update(other.docRef!, {
+        followers: other.followers!.map((user: User) => user.docRef),
+      });
+    });
   }
 
   public async getUsername() {
     if (!this.hasData) await this.getData();
     return this.username!;
+  }
+
+  public async getEmail() {
+    if (!this.hasData) await this.getData();
+    return this.email!;
   }
 
   public async getBio() {

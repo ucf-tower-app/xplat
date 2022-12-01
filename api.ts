@@ -1,30 +1,50 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { auth, db } from './Firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  runTransaction,
+  setDoc,
+  Transaction,
+} from 'firebase/firestore';
 import { User } from './types/types';
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   signInWithEmailAndPassword,
+  UserCredential,
 } from 'firebase/auth';
 import { UserStatus } from './types/common';
+
+export function isKnightsEmail(email: string): boolean {
+  return email.endsWith('@knights.ucf.edu') || email.endsWith('@ucf.edu');
+}
 
 export async function createUser(
   email: string,
   password: string,
   username: string
 ) {
-  await createUserWithEmailAndPassword(auth, email, password);
+  return createUserWithEmailAndPassword(auth, email, password).then(
+    (cred: UserCredential) => {
+      return runTransaction(db, async (transaction: Transaction) => {
+        const newDocRef = doc(db, 'users', cred.user.uid);
+        const cacheDocRef = doc(db, 'caches', 'users');
 
-  if (auth.currentUser === null)
-    return Promise.reject('Failed to authenticate');
+        const map = (await transaction.get(cacheDocRef)).data()!
+          .usernameToUserID;
+        map[username] = cred.user.uid;
 
-  await setDoc(doc(db, 'users', auth.currentUser!.uid), {
-    username: username,
-    email: email,
-    bio: "I'm a new climber!",
-    status: UserStatus.Unverified,
-  });
+        transaction.update(cacheDocRef, { usernameToUserID: map });
+        transaction.set(newDocRef, {
+          username: username,
+          email: email,
+          bio: "I'm a new climber!",
+          status: UserStatus.Unverified,
+        });
+      });
+    }
+  );
 }
 
 export async function getCurrentUser() {
@@ -33,10 +53,14 @@ export async function getCurrentUser() {
   const res = new User(doc(db, 'users', auth.currentUser!.uid));
   if (
     auth.currentUser.emailVerified &&
-    (await res.getStatus()) === UserStatus.Unverified
+    (await res.getStatus()) === UserStatus.Unverified &&
+    isKnightsEmail(await res.getEmail())
   ) {
-    await setDoc(res.docRef!, { status: UserStatus.Verified }, { merge: true });
-    return new User(doc(db, 'users', auth.currentUser!.uid));
+    return runTransaction(db, async (transaction) => {
+      transaction.update(res.docRef!, {
+        status: UserStatus.Verified,
+      });
+    }).then(() => new User(doc(db, 'users', auth.currentUser!.uid)));
   } else return res;
 }
 
@@ -55,16 +79,13 @@ export async function getUserByUsername(username: string) {
 }
 
 export async function signIn(email: string, password: string) {
-  await signInWithEmailAndPassword(auth, email, password);
+  return signInWithEmailAndPassword(auth, email, password);
 }
 
 export async function sendAuthEmail() {
   if (auth.currentUser != null) {
     if (auth.currentUser.emailVerified)
-      console.log('Already verified, not sending email.');
-    else
-      sendEmailVerification(auth.currentUser).catch((error) => {
-        console.log('Failed to send the email: ' + error.toString());
-      });
-  } else console.log('Not signed in!');
+      return Promise.reject('Already verified!');
+    else return sendEmailVerification(auth.currentUser);
+  } else return Promise.reject('Not signed in!');
 }
