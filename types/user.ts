@@ -113,6 +113,8 @@ export class UserMock extends User {
     this.sends = sends;
     this.following = following;
     this.followers = followers;
+
+    this.hasData = true;
   }
 
   public addSends(sends: Send[]) {
