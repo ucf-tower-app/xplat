@@ -4,15 +4,15 @@ import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { Post, Route } from './types';
 
 export class Forum extends LazyObject {
-  // Expected and required when getting data
-  protected posts?: Post[];
-  protected route?: Route;
-
   // Filled with defaults if not present when getting data
+  protected posts?: Post[];
   protected _isArchived?: boolean;
 
+  // Might remain undefined even if has data
+  protected route?: Route;
+
   protected initWithDocumentData(data: DocumentData) {
-    this.posts = data.posts.map(
+    this.posts = (data.posts ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Post(ref)
     );
     if (data.route) this.route = new Route(data.route);
@@ -25,6 +25,11 @@ export class Forum extends LazyObject {
   public async getPosts() {
     if (!this.hasData) await this.getData();
     return this.posts!;
+  }
+
+  public async hasRoute() {
+    if (!this.hasData) await this.getData();
+    return this.route !== undefined;
   }
 
   public async getRoute() {
