@@ -23,7 +23,7 @@ export class User extends LazyObject {
   protected initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
     this.email = data.email;
-    this.displayName = data.fullName;
+    this.displayName = data.displayName;
     this.bio = data.bio;
     this.status = data.status as UserStatus;
     this.sends = (data.sends ?? []).map(
