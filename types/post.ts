@@ -46,15 +46,22 @@ export class Post extends LazyObject {
   }
 
   public async addLike(user: User) {
+    if (this.hasData && (await this.likedBy(user))) return;
     await runTransaction(db, async (transaction) => {
       transaction.update(this.docRef!, { likes: arrayUnion(user.docRef!) });
     });
+    if (this.hasData) this.likes?.push(user);
   }
 
   public async removeLike(user: User) {
-    return runTransaction(db, async (transaction) => {
+    if (this.hasData && !(await this.likedBy(user))) return;
+    await runTransaction(db, async (transaction) => {
       transaction.update(this.docRef!, { likes: arrayRemove(user.docRef!) });
     });
+    if (this.hasData)
+      this.likes = this.likes?.filter(
+        (like) => !refEqual(like.docRef!, user.docRef!)
+      );
   }
 
   public async likedBy(user: User) {
