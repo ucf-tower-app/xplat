@@ -1,7 +1,22 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject, LazyStaticImage } from './common';
-import { DocumentReference, DocumentData } from 'firebase/firestore';
+import {
+  DocumentReference,
+  DocumentData,
+  updateDoc,
+  arrayRemove,
+  refEqual,
+} from 'firebase/firestore';
 import { Comment, Forum, User } from './types';
+import { db, storage } from '../Firebase';
+import {
+  arrayUnion,
+  collection,
+  doc,
+  runTransaction,
+  serverTimestamp,
+  Transaction,
+} from 'firebase/firestore';
 
 export class Post extends LazyObject {
   // Expected and required when getting data
@@ -36,6 +51,18 @@ export class Post extends LazyObject {
       this.imageContent = new LazyStaticImage(data.imageContent);
 
     this.hasData = true;
+  }
+
+  public async addLike(user: User) {
+    await runTransaction(db, async (transaction) => {
+      transaction.update(this.docRef!, { likes: arrayUnion(user.docRef!) });
+    });
+  }
+
+  public async removeLike(user: User) {
+    return runTransaction(db, async (transaction) => {
+      transaction.update(this.docRef!, { likes: arrayRemove(user.docRef!) });
+    });
   }
 
   public async getAuthor() {
