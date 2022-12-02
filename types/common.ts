@@ -1,4 +1,9 @@
-import { DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
+import {
+  DocumentReference,
+  DocumentData,
+  getDoc,
+  refEqual,
+} from 'firebase/firestore';
 import { getUrl } from '../api';
 
 export enum UserStatus {
@@ -31,6 +36,14 @@ export abstract class LazyObject {
     this.docRef = docRef;
     this.hasData = false;
   }
+}
+
+export function containsRef(array: LazyObject[], targ: LazyObject) {
+  return (
+    targ.docRef &&
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    array.some((obj) => obj.docRef && refEqual(obj.docRef, targ.docRef!))
+  );
 }
 
 export class LazyStaticImage {

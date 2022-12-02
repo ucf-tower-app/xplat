@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject, LazyStaticImage, UserStatus } from './common';
+import { containsRef, LazyObject, LazyStaticImage, UserStatus } from './common';
 import {
   DocumentReference,
   DocumentData,
   Transaction,
+  arrayUnion,
 } from 'firebase/firestore';
 import { runTransaction } from 'firebase/firestore';
 import { Send } from './types';
@@ -44,13 +45,7 @@ export class User extends LazyObject {
     // If we already have data, might as well run the free short-circuit check.
     // We're going to run it anyways during the transaction, but if we can avoid it,
     // might as well do it now.
-    if (
-      this.hasData &&
-      (await this.getFollowing()).some(
-        (user: User) => user.docRef?.path === other.docRef?.path
-      )
-    )
-      return;
+    if (this.hasData && containsRef(this.following!, other)) return;
 
     return runTransaction(db, async (transaction: Transaction) => {
       const thisSnap = await transaction.get(this.docRef!);
@@ -59,24 +54,16 @@ export class User extends LazyObject {
       this.initWithDocumentData(thisSnap.data()!);
       other.initWithDocumentData(otherSnap.data()!);
 
-      if (
-        this.following?.some(
-          (user: User) => user.docRef?.path === other.docRef?.path
-        ) ||
-        other.followers?.some(
-          (user: User) => user.docRef?.path === this.docRef?.path
-        )
-      )
-        return;
+      if (containsRef(this.following!, other)) return;
 
       this.following?.push(other);
       other.followers?.push(this);
 
       transaction.update(this.docRef!, {
-        following: this.following!.map((user: User) => user.docRef),
+        following: arrayUnion(other.docRef),
       });
       transaction.update(other.docRef!, {
-        followers: other.followers!.map((user: User) => user.docRef),
+        followers: arrayUnion(this.docRef),
       });
     });
   }
