@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { Route, User } from '../types/types';
+import { Route, RouteStatus, User } from '../types/types';
 import { db } from '../Firebase';
 import {
   collection,
@@ -7,7 +7,6 @@ import {
   runTransaction,
   Transaction,
 } from 'firebase/firestore';
-import { randomUUID } from 'crypto';
 
 export function getRouteById(routeId: string) {
   return new Route(doc(db, 'routes', routeId));
@@ -32,6 +31,7 @@ export function createRoute(
       rating: rating,
       ...(setter && { setter: setter.docRef! }),
       forum: newForumDocRef,
+      status: RouteStatus.Draft,
     });
     transaction.set(newForumDocRef, {
       route: newRouteDocRef,

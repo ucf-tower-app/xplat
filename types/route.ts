@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject } from './common';
+import { LazyObject, RouteStatus } from './common';
 import { DocumentReference, DocumentData } from 'firebase/firestore';
 import { User, Tag, Forum } from './types';
 
@@ -12,7 +12,7 @@ export class Route extends LazyObject {
   // Filled with defaults if not present when getting data
   protected likes?: User[];
   protected tags?: Tag[];
-  protected _isActive?: boolean;
+  protected status?: RouteStatus;
 
   // Might remain undefined even if has data
   protected setter?: User;
@@ -28,7 +28,7 @@ export class Route extends LazyObject {
     this.tags = (data.tags ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Tag(ref)
     );
-    this._isActive = data.isActive ?? false;
+    this.status = (data.status ?? 0) as RouteStatus;
 
     if (data.setter) this.setter = new User(data.setter);
 
@@ -70,9 +70,9 @@ export class Route extends LazyObject {
     return this.tags!;
   }
 
-  public async isActive() {
+  public async getStatus() {
     if (!this.hasData) await this.getData();
-    return this._isActive!;
+    return this.status!;
   }
 }
 

@@ -10,6 +10,12 @@ export enum UserStatus {
   Developer = 5,
 }
 
+export enum RouteStatus {
+  Draft = 0,
+  Active = 1,
+  Archived = 2,
+}
+
 export abstract class LazyObject {
   public docRef: DocumentReference<DocumentData> | undefined;
   protected hasData: boolean;
