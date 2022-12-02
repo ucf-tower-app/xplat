@@ -3,20 +3,11 @@ import { LazyObject, LazyStaticImage } from './common';
 import {
   DocumentReference,
   DocumentData,
-  updateDoc,
   arrayRemove,
-  refEqual,
 } from 'firebase/firestore';
 import { Comment, Forum, User } from './types';
-import { db, storage } from '../Firebase';
-import {
-  arrayUnion,
-  collection,
-  doc,
-  runTransaction,
-  serverTimestamp,
-  Transaction,
-} from 'firebase/firestore';
+import { db } from '../Firebase';
+import { arrayUnion, runTransaction } from 'firebase/firestore';
 
 export class Post extends LazyObject {
   // Expected and required when getting data
