@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Forum, Post, User } from '../types/types';
-import { db } from '../Firebase';
+import { db, storage } from '../Firebase';
 import {
   arrayUnion,
   collection,
@@ -9,25 +9,32 @@ import {
   serverTimestamp,
   Transaction,
 } from 'firebase/firestore';
+import { ref, uploadBytes } from 'firebase/storage';
 
 export function getPostById(postId: string) {
   return new Post(doc(db, 'posts', postId));
 }
 
-// TODO: Static content
 export async function createPost(
   author: User,
   textContent: string,
-  forum: Forum
+  forum: Forum,
+  imageContent: Blob | undefined = undefined
 ) {
+  const newPostDocRef = doc(collection(db, 'posts'));
+  if (imageContent) {
+    const imageRef = ref(storage, 'posts' + newPostDocRef.id);
+    await uploadBytes(imageRef, imageContent);
+  }
+
   return runTransaction(db, async (transaction: Transaction) => {
-    const newPostDocRef = doc(collection(db, 'posts'));
     transaction.update(forum.docRef!, { posts: arrayUnion(newPostDocRef) });
     transaction.update(author.docRef!, { posts: arrayUnion(newPostDocRef) });
     transaction.set(newPostDocRef, {
       author: author.docRef!,
       timestamp: serverTimestamp(),
       textContent: textContent,
+      ...(imageContent && { imageContent: 'posts' + newPostDocRef.id }),
     });
     return new Post(newPostDocRef);
   });
