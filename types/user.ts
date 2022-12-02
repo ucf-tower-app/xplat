@@ -12,6 +12,7 @@ import { db } from '../Firebase';
 export class User extends LazyObject {
   protected username?: string;
   protected email?: string;
+  protected displayName?: string;
   protected bio?: string;
   protected status?: UserStatus;
   protected sends?: Send[];
@@ -22,6 +23,7 @@ export class User extends LazyObject {
   protected initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
     this.email = data.email;
+    this.displayName = data.displayName;
     this.bio = data.bio;
     this.status = data.status as UserStatus;
     this.sends = (data.sends ?? []).map(
@@ -94,6 +96,11 @@ export class User extends LazyObject {
     return this.email!;
   }
 
+  public async getDisplayName() {
+    if (!this.hasData) await this.getData();
+    return this.displayName!;
+  }
+
   public async getBio() {
     if (!this.hasData) await this.getData();
     return this.bio!;
@@ -123,6 +130,8 @@ export class User extends LazyObject {
 export class UserMock extends User {
   constructor(
     username: string,
+    email: string,
+    displayName: string,
     bio: string,
     status: UserStatus,
     sends: Send[],
@@ -131,6 +140,8 @@ export class UserMock extends User {
   ) {
     super();
     this.username = username;
+    this.email = email;
+    this.displayName = displayName;
     this.bio = bio;
     this.status = status;
     this.sends = sends;
