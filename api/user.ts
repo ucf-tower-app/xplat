@@ -16,7 +16,8 @@ export function isKnightsEmail(email: string): boolean {
 export async function createUser(
   email: string,
   password: string,
-  username: string
+  username: string,
+  displayName: string
 ) {
   return createUserWithEmailAndPassword(auth, email, password).then(
     (cred: UserCredential) => {
@@ -32,6 +33,7 @@ export async function createUser(
         transaction.set(newDocRef, {
           username: username,
           email: email,
+          displayName: displayName,
           bio: "I'm a new climber!",
           status: UserStatus.Unverified,
         });
