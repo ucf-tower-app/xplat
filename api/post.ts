@@ -23,7 +23,7 @@ export async function createPost(
 ) {
   const newPostDocRef = doc(collection(db, 'posts'));
   if (imageContent) {
-    const imageRef = ref(storage, 'posts' + newPostDocRef.id);
+    const imageRef = ref(storage, 'posts/' + newPostDocRef.id);
     await uploadBytes(imageRef, imageContent);
   }
 
@@ -34,7 +34,7 @@ export async function createPost(
       author: author.docRef!,
       timestamp: serverTimestamp(),
       textContent: textContent,
-      ...(imageContent && { imageContent: 'posts' + newPostDocRef.id }),
+      ...(imageContent && { imageContent: 'posts/' + newPostDocRef.id }),
     });
     return new Post(newPostDocRef);
   });
