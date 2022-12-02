@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject, RouteStatus } from './common';
-import { DocumentReference, DocumentData } from 'firebase/firestore';
+import {
+  DocumentReference,
+  DocumentData,
+  runTransaction,
+  arrayUnion,
+  arrayRemove,
+} from 'firebase/firestore';
 import { User, Tag, Forum } from './types';
+import { db } from '../Firebase';
 
 export class Route extends LazyObject {
   // Expected and required when getting data
@@ -33,6 +40,18 @@ export class Route extends LazyObject {
     if (data.setter) this.setter = new User(data.setter);
 
     this.hasData = true;
+  }
+
+  public async addLike(user: User) {
+    await runTransaction(db, async (transaction) => {
+      transaction.update(this.docRef!, { likes: arrayUnion(user.docRef!) });
+    });
+  }
+
+  public async removeLike(user: User) {
+    return runTransaction(db, async (transaction) => {
+      transaction.update(this.docRef!, { likes: arrayRemove(user.docRef!) });
+    });
   }
 
   public async getName() {
