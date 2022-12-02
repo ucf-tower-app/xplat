@@ -6,6 +6,7 @@ import {
   runTransaction,
   arrayUnion,
   arrayRemove,
+  refEqual,
 } from 'firebase/firestore';
 import { User, Tag, Forum } from './types';
 import { db } from '../Firebase';
@@ -52,6 +53,12 @@ export class Route extends LazyObject {
     return runTransaction(db, async (transaction) => {
       transaction.update(this.docRef!, { likes: arrayRemove(user.docRef!) });
     });
+  }
+
+  public async likedBy(user: User) {
+    return this.getLikes().then((likes) =>
+      likes.some((like) => refEqual(like.docRef!, user.docRef!))
+    );
   }
 
   public async getName() {
