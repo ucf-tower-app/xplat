@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LazyObject } from './common';
 import { DocumentReference, DocumentData } from 'firebase/firestore';
-import { Post, Route } from './types';
+import { Post, Route, User } from './types';
+import { createPost } from '../api';
+import { text } from 'stream/consumers';
 
 export class Forum extends LazyObject {
   // Filled with defaults if not present when getting data
@@ -40,6 +42,14 @@ export class Forum extends LazyObject {
   public async isArchived() {
     if (!this.hasData) await this.getData();
     return this._isArchived;
+  }
+
+  public async createPost(
+    author: User,
+    textContent: string,
+    imageContent: Blob | undefined = undefined
+  ) {
+    return createPost(author, textContent, this, imageContent);
   }
 }
 

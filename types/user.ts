@@ -7,18 +7,22 @@ import {
   arrayUnion,
 } from 'firebase/firestore';
 import { runTransaction } from 'firebase/firestore';
-import { Send } from './types';
+import { Send, Post } from './types';
 import { db } from '../Firebase';
 
 export class User extends LazyObject {
+  // Expected and required when getting data
   protected username?: string;
   protected email?: string;
   protected displayName?: string;
   protected bio?: string;
   protected status?: UserStatus;
+
+  // Filled with defaults if not present when getting data
   protected sends?: Send[];
   protected following?: User[];
   protected followers?: User[];
+  protected posts?: Post[];
   protected avatar?: LazyStaticImage;
 
   protected initWithDocumentData(data: DocumentData): void {
@@ -27,6 +31,9 @@ export class User extends LazyObject {
     this.displayName = data.displayName;
     this.bio = data.bio;
     this.status = data.status as UserStatus;
+    this.posts = (data.posts ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new Send(ref)
+    );
     this.sends = (data.sends ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Send(ref)
     );
@@ -66,6 +73,11 @@ export class User extends LazyObject {
         followers: arrayUnion(this.docRef),
       });
     });
+  }
+
+  public async getPosts() {
+    if (!this.hasData) await this.getData();
+    return this.posts!;
   }
 
   public async getAvatarUrl() {
