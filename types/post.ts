@@ -121,6 +121,7 @@ export class PostMock extends Post {
     author: User,
     timestamp: Date,
     textContent: string,
+    imageContent: LazyStaticImage,
     likes: User[],
     comments: Comment[]
   ) {
@@ -128,6 +129,7 @@ export class PostMock extends Post {
     this.author = author;
     this.timestamp = timestamp;
     this.textContent = textContent;
+    this.imageContent = imageContent;
     this.likes = likes;
     this.comments = comments;
 
