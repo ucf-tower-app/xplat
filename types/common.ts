@@ -56,8 +56,9 @@ export class LazyStaticImage {
   protected imagePath: string;
   protected imageUrl?: string;
 
-  constructor(imagePath: string) {
+  constructor(imagePath: string, imageUrl?: string) {
     this.imagePath = imagePath;
+    this.imageUrl = imageUrl;
   }
 
   public async getImageUrl() {

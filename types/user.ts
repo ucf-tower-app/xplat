@@ -135,7 +135,8 @@ export class UserMock extends User {
     status: UserStatus,
     sends: Send[],
     following: User[],
-    followers: User[]
+    followers: User[],
+    avatar?: LazyStaticImage
   ) {
     super();
     this.username = username;
@@ -146,6 +147,7 @@ export class UserMock extends User {
     this.sends = sends;
     this.following = following;
     this.followers = followers;
+    this.avatar = avatar;
 
     this.hasData = true;
   }
