@@ -19,12 +19,15 @@ export async function createPost(
   author: User,
   textContent: string,
   forum: Forum | undefined = undefined,
-  imageContent: Blob | undefined = undefined
+  imageContent: Blob[] | undefined = undefined
 ) {
   const newPostDocRef = doc(collection(db, 'posts'));
   if (imageContent) {
-    const imageRef = ref(storage, 'posts/' + newPostDocRef.id);
-    await uploadBytes(imageRef, imageContent);
+    await Promise.all(
+      imageContent!.map((img, idx) =>
+        uploadBytes(ref(storage, 'posts/' + newPostDocRef.id + '_' + idx), img)
+      )
+    );
   }
 
   return runTransaction(db, async (transaction: Transaction) => {
@@ -36,7 +39,11 @@ export async function createPost(
       timestamp: serverTimestamp(),
       textContent: textContent,
       ...(forum && { forum: forum.docRef }),
-      ...(imageContent && { imageContent: 'posts/' + newPostDocRef.id }),
+      ...(imageContent && {
+        imageContent: imageContent!.map(
+          (_, idx) => 'posts/' + newPostDocRef.id + '_' + idx
+        ),
+      }),
     });
     return new Post(newPostDocRef);
   });

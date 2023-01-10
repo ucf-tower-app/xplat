@@ -22,10 +22,10 @@ export class Post extends LazyObject {
   protected likes?: User[];
   protected comments?: Comment[];
   protected _isSaved?: boolean;
+  protected imageContent?: LazyStaticImage[];
 
   // Might remain undefined even if has data
   protected forum?: Forum;
-  protected imageContent?: LazyStaticImage;
 
   protected initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
@@ -39,9 +39,10 @@ export class Post extends LazyObject {
       (ref: DocumentReference<DocumentData>) => new Comment(ref)
     );
     this._isSaved = data._isSaved ?? false;
+    this.imageContent = (data.imageContent ?? []).map(
+      (path: string) => new LazyStaticImage(path)
+    );
 
-    if (data.imageContent)
-      this.imageContent = new LazyStaticImage(data.imageContent);
     if (data.forum) this.forum = new Forum(data.forum);
 
     this.hasData = true;
@@ -107,14 +108,14 @@ export class Post extends LazyObject {
     return this.forum !== undefined;
   }
 
-  public async hasImageContent() {
+  public async getImageCount() {
     if (!this.hasData) await this.getData();
-    return this.imageContent !== undefined;
+    return this.imageContent!.length;
   }
 
-  public async getImageContentUrl() {
+  public async getImageContentUrls() {
     if (!this.hasData) await this.getData();
-    return this.imageContent?.getImageUrl();
+    return Promise.all(this.imageContent!.map((img) => img.getImageUrl()));
   }
 
   public async isSaved() {
@@ -123,16 +124,18 @@ export class Post extends LazyObject {
   }
 
   public async deleteStaticContent() {
-    if (await this.hasImageContent())
-      await deleteObject(this.imageContent.getStorageRef());
+    if (!this.hasData) await this.getData();
+    return Promise.all(
+      this.imageContent!.map((img) => deleteObject(img.getStorageRef()))
+    );
   }
 
   public async delete() {
     if (!this.docRef) return;
-    if (await this.hasForum()) await this.forum!.deletePost(this);
+    if (await this.hasForum()) return this.forum!.deletePost(this);
     else {
       await this.deleteStaticContent();
-      await deleteDoc(this.docRef);
+      return deleteDoc(this.docRef);
     }
   }
 }
@@ -144,7 +147,7 @@ export class PostMock extends Post {
     textContent: string,
     likes: User[],
     comments: Comment[],
-    imageContent?: LazyStaticImage
+    imageContent?: LazyStaticImage[]
   ) {
     super();
     this.author = author;
