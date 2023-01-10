@@ -159,7 +159,7 @@ export class Post extends LazyObject {
     if (!this.docRef) return;
     await this.deleteStaticContent();
     return runTransaction(db, async (transaction: Transaction) => {
-      this.initWithDocumentData((await transaction.get(this.docRef!)).data()!);
+      this.updateWithTransaction(transaction);
 
       if (this.forum)
         transaction.update(this.forum!.docRef!, {

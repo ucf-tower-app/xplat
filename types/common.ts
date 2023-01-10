@@ -4,6 +4,7 @@ import {
   DocumentData,
   getDoc,
   refEqual,
+  Transaction,
 } from 'firebase/firestore';
 import { ref } from 'firebase/storage';
 import { getUrl } from '../api';
@@ -39,6 +40,10 @@ export abstract class LazyObject {
       if (!docSnap.exists()) return Promise.reject('Doc snap does not exist');
       else this.initWithDocumentData(docSnap.data());
     });
+  }
+
+  public async updateWithTransaction(transaction: Transaction) {
+    this.initWithDocumentData((await transaction.get(this.docRef!)).data()!);
   }
 
   constructor(docRef: DocumentReference<DocumentData> | undefined = undefined) {
