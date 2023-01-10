@@ -115,7 +115,6 @@ export class Post extends LazyObject {
 
   public async getImageContentUrls() {
     if (!this.hasData) await this.getData();
-    console.log(this);
     return Promise.all(this.imageContent!.map((img) => img.getImageUrl()));
   }
 
