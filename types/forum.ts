@@ -56,15 +56,6 @@ export class Forum extends LazyObject {
   ) {
     return createPost(author, textContent, this, imageContent);
   }
-
-  public async deletePost(post: Post) {
-    await post.deleteStaticContent();
-    await runTransaction(db, async (transaction) => {
-      transaction.update(this.docRef!, { posts: arrayRemove(post.docRef!) });
-      transaction.delete(post.docRef!);
-    });
-    if (this.posts) removeRef(this.posts, post);
-  }
 }
 
 export class ForumMock extends Forum {

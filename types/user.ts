@@ -24,6 +24,7 @@ export class User extends LazyObject {
   protected followers?: User[];
   protected posts?: Post[];
   protected avatar?: LazyStaticImage;
+  protected comments?: Comment[];
 
   protected initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -108,6 +109,11 @@ export class User extends LazyObject {
   public async getStatus() {
     if (!this.hasData) await this.getData();
     return this.status!;
+  }
+
+  public async getComments() {
+    if (!this.hasData) await this.getData();
+    return this.comments!;
   }
 
   public async getSends() {

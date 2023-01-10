@@ -6,11 +6,16 @@ import {
   arrayRemove,
   refEqual,
   deleteDoc,
+  doc,
+  collection,
+  serverTimestamp,
+  Transaction,
 } from 'firebase/firestore';
 import { Comment, Forum, User } from './types';
 import { db } from '../Firebase';
 import { arrayUnion, runTransaction } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
+import { text } from 'stream/consumers';
 
 export class Post extends LazyObject {
   // Expected and required when getting data
@@ -46,6 +51,26 @@ export class Post extends LazyObject {
     if (data.forum) this.forum = new Forum(data.forum);
 
     this.hasData = true;
+  }
+
+  public async addComment(author: User, textContent: string) {
+    const newCommentDocRef = doc(collection(db, 'comments'));
+
+    return runTransaction(db, async (transaction: Transaction) => {
+      // actually create the comment document
+      transaction.set(newCommentDocRef, {
+        author: author.docRef!,
+        textContent: textContent,
+        timestamp: serverTimestamp(),
+        post: this.docRef!,
+      });
+      transaction.update(author.docRef!, {
+        comments: arrayUnion(newCommentDocRef),
+      });
+      transaction.update(this.docRef!, {
+        comments: arrayUnion(newCommentDocRef),
+      });
+    });
   }
 
   public async addLike(user: User) {
@@ -132,11 +157,17 @@ export class Post extends LazyObject {
 
   public async delete() {
     if (!this.docRef) return;
-    if (await this.hasForum()) return this.forum!.deletePost(this);
-    else {
-      await this.deleteStaticContent();
-      return deleteDoc(this.docRef);
-    }
+    await this.deleteStaticContent();
+    return runTransaction(db, async (transaction: Transaction) => {
+      this.initWithDocumentData((await transaction.get(this.docRef!)).data()!);
+
+      if (this.forum)
+        transaction.update(this.forum!.docRef!, {
+          posts: arrayRemove(this.docRef!),
+        });
+      transaction.delete(this.docRef!);
+      this.comments!.forEach((cmt) => transaction.delete(cmt.docRef!));
+    });
   }
 }
 
