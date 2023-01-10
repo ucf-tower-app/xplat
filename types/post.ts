@@ -123,8 +123,7 @@ export class Post extends LazyObject {
   }
 
   public async deleteStaticContent() {
-    if (!this.hasData) await this.getData();
-    if (this.imageContent)
+    if (await this.hasImageContent())
       await deleteObject(this.imageContent.getStorageRef());
   }
 
