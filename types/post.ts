@@ -22,9 +22,9 @@ export class Post extends LazyObject {
   protected likes?: User[];
   protected comments?: Comment[];
   protected _isSaved?: boolean;
-  protected forum?: Forum;
 
   // Might remain undefined even if has data
+  protected forum?: Forum;
   protected imageContent?: LazyStaticImage;
 
   protected initWithDocumentData(data: DocumentData) {
