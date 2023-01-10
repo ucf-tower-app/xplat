@@ -52,7 +52,7 @@ export class Forum extends LazyObject {
   public async createPost(
     author: User,
     textContent: string,
-    imageContent: Blob | undefined = undefined
+    imageContent: Blob[] | undefined = undefined
   ) {
     return createPost(author, textContent, this, imageContent);
   }
