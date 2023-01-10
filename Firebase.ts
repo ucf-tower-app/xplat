@@ -11,3 +11,5 @@ export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth();
 export const storage = getStorage();
+
+export const DEFAULT_AVATAR_PATH = 'avatars/climber.png';
