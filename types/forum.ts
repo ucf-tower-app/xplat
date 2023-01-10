@@ -1,9 +1,14 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject } from './common';
-import { DocumentReference, DocumentData } from 'firebase/firestore';
+import { LazyObject, removeRef } from './common';
+import {
+  DocumentReference,
+  DocumentData,
+  runTransaction,
+  arrayRemove,
+} from 'firebase/firestore';
 import { Post, Route, User } from './types';
 import { createPost } from '../api';
-import { text } from 'stream/consumers';
+import { db } from '../Firebase';
 
 export class Forum extends LazyObject {
   // Filled with defaults if not present when getting data
@@ -50,6 +55,15 @@ export class Forum extends LazyObject {
     imageContent: Blob | undefined = undefined
   ) {
     return createPost(author, textContent, this, imageContent);
+  }
+
+  public async deletePost(post: Post) {
+    await post.deleteStaticContent();
+    await runTransaction(db, async (transaction) => {
+      transaction.update(this.docRef!, { posts: arrayRemove(post.docRef!) });
+      transaction.delete(post.docRef!);
+    });
+    if (this.posts) removeRef(this.posts, post);
   }
 }
 
