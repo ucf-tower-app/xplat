@@ -1,10 +1,13 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
   DocumentReference,
   DocumentData,
   getDoc,
   refEqual,
 } from 'firebase/firestore';
+import { ref } from 'firebase/storage';
 import { getUrl } from '../api';
+import { storage } from '../Firebase';
 
 export enum UserStatus {
   Unverified = 0,
@@ -47,9 +50,17 @@ export abstract class LazyObject {
 export function containsRef(array: LazyObject[], targ: LazyObject) {
   return (
     targ.docRef &&
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     array.some((obj) => obj.docRef && refEqual(obj.docRef, targ.docRef!))
   );
+}
+
+export function removeRef(array: LazyObject[], targ: LazyObject) {
+  if (containsRef(array, targ)) {
+    const idx = array.findIndex(
+      (e) => e.docRef && refEqual(e.docRef, targ.docRef!)
+    );
+    array.splice(idx);
+  }
 }
 
 export class LazyStaticImage {
@@ -66,5 +77,9 @@ export class LazyStaticImage {
       this.imageUrl = await getUrl(this.imagePath);
     }
     return this.imageUrl;
+  }
+
+  public getStorageRef() {
+    return ref(storage, this.imagePath);
   }
 }

@@ -5,17 +5,18 @@ import {
   DocumentData,
   arrayRemove,
   refEqual,
+  deleteDoc,
 } from 'firebase/firestore';
 import { Comment, Forum, User } from './types';
 import { db } from '../Firebase';
 import { arrayUnion, runTransaction } from 'firebase/firestore';
+import { deleteObject } from 'firebase/storage';
 
 export class Post extends LazyObject {
   // Expected and required when getting data
   protected author?: User;
   protected timestamp?: Date;
   protected textContent?: string;
-  protected forum?: Forum;
 
   // Filled with defaults if not present when getting data
   protected likes?: User[];
@@ -23,13 +24,13 @@ export class Post extends LazyObject {
   protected _isSaved?: boolean;
 
   // Might remain undefined even if has data
+  protected forum?: Forum;
   protected imageContent?: LazyStaticImage;
 
   protected initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
     this.timestamp = data.timestamp;
     this.textContent = data.textContent;
-    this.forum = new Forum(data.forum);
 
     this.likes = (data.likes ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
@@ -41,6 +42,7 @@ export class Post extends LazyObject {
 
     if (data.imageContent)
       this.imageContent = new LazyStaticImage(data.imageContent);
+    if (data.forum) this.forum = new Forum(data.forum);
 
     this.hasData = true;
   }
@@ -97,7 +99,12 @@ export class Post extends LazyObject {
 
   public async getForum() {
     if (!this.hasData) await this.getData();
-    return this.forum!;
+    return this.forum;
+  }
+
+  public async hasForum() {
+    if (!this.hasData) await this.getData();
+    return this.forum !== undefined;
   }
 
   public async hasImageContent() {
@@ -113,6 +120,20 @@ export class Post extends LazyObject {
   public async isSaved() {
     if (!this.hasData) await this.getData();
     return this._isSaved!;
+  }
+
+  public async deleteStaticContent() {
+    if (await this.hasImageContent())
+      await deleteObject(this.imageContent.getStorageRef());
+  }
+
+  public async delete() {
+    if (!this.docRef) return;
+    if (await this.hasForum()) await this.forum!.deletePost(this);
+    else {
+      await this.deleteStaticContent();
+      await deleteDoc(this.docRef);
+    }
   }
 }
 

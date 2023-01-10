@@ -18,7 +18,7 @@ export function getPostById(postId: string) {
 export async function createPost(
   author: User,
   textContent: string,
-  forum: Forum,
+  forum: Forum | undefined = undefined,
   imageContent: Blob | undefined = undefined
 ) {
   const newPostDocRef = doc(collection(db, 'posts'));
@@ -28,12 +28,14 @@ export async function createPost(
   }
 
   return runTransaction(db, async (transaction: Transaction) => {
-    transaction.update(forum.docRef!, { posts: arrayUnion(newPostDocRef) });
+    if (forum)
+      transaction.update(forum.docRef!, { posts: arrayUnion(newPostDocRef) });
     transaction.update(author.docRef!, { posts: arrayUnion(newPostDocRef) });
     transaction.set(newPostDocRef, {
       author: author.docRef!,
       timestamp: serverTimestamp(),
       textContent: textContent,
+      ...(forum && { forum: forum.docRef }),
       ...(imageContent && { imageContent: 'posts/' + newPostDocRef.id }),
     });
     return new Post(newPostDocRef);
