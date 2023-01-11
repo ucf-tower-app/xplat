@@ -1,17 +1,21 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { DocumentData } from 'firebase/firestore';
+import { transcode } from 'buffer';
+import { arrayRemove, DocumentData, runTransaction } from 'firebase/firestore';
+import { db } from '../Firebase';
 import { LazyObject } from './common';
-import { User } from './types';
+import { Post, User } from './types';
 
 export class Comment extends LazyObject {
-  protected author: User | undefined;
-  protected timestamp: Date | undefined;
-  protected textContent: string | undefined;
+  protected author?: User;
+  protected timestamp?: Date;
+  protected textContent?: string;
+  protected post?: Post;
 
   protected initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
     this.timestamp = data.timestamp;
     this.textContent = data.textContent;
+    this.post = new Post(data.post);
 
     this.hasData = true;
   }
@@ -29,6 +33,21 @@ export class Comment extends LazyObject {
   public async getTextContent() {
     if (!this.hasData) await this.getData();
     return this.textContent!;
+  }
+
+  public async getPost() {
+    if (!this.hasData) await this.getData();
+    return this.post!;
+  }
+
+  public async delete() {
+    return runTransaction(db, async (transaction) => {
+      this.updateWithTransaction(transaction);
+      transaction.update(this.post!.docRef!, {
+        comments: arrayRemove(this.docRef!),
+      });
+      transaction.delete(this.docRef!);
+    });
   }
 }
 
