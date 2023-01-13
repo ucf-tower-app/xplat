@@ -205,9 +205,9 @@ export class PostMock extends Post {
     author: User,
     timestamp: Date,
     textContent: string,
-    likes: User[],
-    comments: Comment[],
-    imageContent?: LazyStaticImage[]
+    likes: User[] = [],
+    comments: Comment[] = [],
+    imageContent: LazyStaticImage[] = []
   ) {
     super();
     this.author = author;

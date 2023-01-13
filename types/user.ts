@@ -8,7 +8,7 @@ import {
 } from 'firebase/firestore';
 import { runTransaction } from 'firebase/firestore';
 import { Send, Post, LazyStaticImage } from './types';
-import { db } from '../Firebase';
+import { db, DEFAULT_AVATAR_PATH } from '../Firebase';
 
 export class User extends LazyObject {
   // Expected and required when getting data
@@ -44,7 +44,7 @@ export class User extends LazyObject {
     this.followers = (data.followers ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
-    this.avatar = new LazyStaticImage(data.avatarPath ?? 'avatars/climber.png');
+    this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
 
     this.hasData = true;
   }
