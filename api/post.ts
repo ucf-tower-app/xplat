@@ -11,10 +11,25 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 
+/** getPostById
+ * Returns a Tower Post corresponding to the document ID provided
+ * @param id: The Post's firebase ID
+ * @remarks The returned Post is not guaranteed to have data in firebase.
+ * This will result in subsequent getData() calls to throw.
+ * @returns A Tower Post
+ */
 export function getPostById(postId: string) {
   return new Post(doc(db, 'posts', postId));
 }
 
+/** createPost
+ * Creates a post
+ * @param author
+ * @param textContent: The text content of the post
+ * @param forum: Optional, the forum to which the post is made
+ * @param imageContent: Optional, a list of Blobs that are images
+ * @returns The newly created Tower Post
+ */
 export async function createPost(
   author: User,
   textContent: string,
