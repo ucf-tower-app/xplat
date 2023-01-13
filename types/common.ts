@@ -6,9 +6,6 @@ import {
   refEqual,
   Transaction,
 } from 'firebase/firestore';
-import { ref } from 'firebase/storage';
-import { getUrl } from '../api';
-import { storage } from '../Firebase';
 
 export enum UserStatus {
   Unverified = 0,
@@ -65,26 +62,5 @@ export function removeRef(array: LazyObject[], targ: LazyObject) {
       (e) => e.docRef && refEqual(e.docRef, targ.docRef!)
     );
     array.splice(idx);
-  }
-}
-
-export class LazyStaticImage {
-  protected imagePath: string;
-  protected imageUrl?: string;
-
-  constructor(imagePath: string, imageUrl?: string) {
-    this.imagePath = imagePath;
-    this.imageUrl = imageUrl;
-  }
-
-  public async getImageUrl() {
-    if (this.imageUrl === undefined) {
-      this.imageUrl = await getUrl(this.imagePath);
-    }
-    return this.imageUrl;
-  }
-
-  public getStorageRef() {
-    return ref(storage, this.imagePath);
   }
 }

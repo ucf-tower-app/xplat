@@ -1,21 +1,20 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject, LazyStaticImage } from './common';
+import { LazyObject } from './common';
 import {
   DocumentReference,
   DocumentData,
   arrayRemove,
   refEqual,
-  deleteDoc,
   doc,
   collection,
   serverTimestamp,
   Transaction,
 } from 'firebase/firestore';
-import { Comment, Forum, User } from './types';
+import { Comment, Forum, User, LazyStaticImage } from './types';
 import { db } from '../Firebase';
 import { arrayUnion, runTransaction } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
-import { text } from 'stream/consumers';
+import { LazyStaticVideo } from './media';
 
 export class Post extends LazyObject {
   // Expected and required when getting data
@@ -31,6 +30,7 @@ export class Post extends LazyObject {
 
   // Might remain undefined even if has data
   protected forum?: Forum;
+  protected videoContent?: LazyStaticVideo;
 
   protected initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
@@ -49,7 +49,11 @@ export class Post extends LazyObject {
     );
 
     if (data.forum) this.forum = new Forum(data.forum);
-
+    if (data.videoContent)
+      this.videoContent = new LazyStaticVideo(
+        data.videoContent + '_thumbnail',
+        data.videoContent + '_video'
+      );
     this.hasData = true;
   }
 
@@ -143,6 +147,21 @@ export class Post extends LazyObject {
     return Promise.all(this.imageContent!.map((img) => img.getImageUrl()));
   }
 
+  public async hasVideoContent() {
+    if (!this.hasData) await this.getData();
+    return this.videoContent !== undefined;
+  }
+
+  public async getVideoThumbnailUrl() {
+    if (!this.hasData) await this.getData();
+    return this.videoContent!.getThumbnailUrl();
+  }
+
+  public async getVideoUrl() {
+    if (!this.hasData) await this.getData();
+    return this.videoContent!.getVideoUrl();
+  }
+
   public async isSaved() {
     if (!this.hasData) await this.getData();
     return this._isSaved!;
@@ -150,9 +169,19 @@ export class Post extends LazyObject {
 
   public async deleteStaticContent() {
     if (!this.hasData) await this.getData();
-    return Promise.all(
-      this.imageContent!.map((img) => deleteObject(img.getStorageRef()))
-    );
+    const deleteImages =
+      this.imageContent &&
+      Promise.all(
+        this.imageContent.map((img) => deleteObject(img.getStorageRef()))
+      );
+    const deleteThumbnail =
+      this.videoContent &&
+      deleteObject(this.videoContent.getThumbnailStorageRef());
+    const deleteVideo =
+      this.videoContent && deleteObject(this.videoContent.getVideoStorageRef());
+    await deleteImages;
+    await deleteThumbnail;
+    await deleteVideo;
   }
 
   public async delete() {
