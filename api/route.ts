@@ -8,10 +8,24 @@ import {
   Transaction,
 } from 'firebase/firestore';
 
+/** getRouteById
+ * Returns a Firebase Route corresponding to the document ID provided
+ * @param id: The Route's firebase ID
+ * @remarks The returned Route is not guaranteed to have data in firebase.
+ * This will result in subsequent getData() calls to throw.
+ * @returns A Firebase Route
+ */
 export function getRouteById(routeId: string) {
   return new Route(doc(db, 'routes', routeId));
 }
 
+/** createRoute
+ * Creates a route
+ * @param name: The route's name
+ * @param rating: The route's rating
+ * @param setter: The Tower User of the setter, or undefined. Defaults to undefined.
+ * @returns The newly created Route
+ */
 export function createRoute(
   name: string,
   rating: string,
