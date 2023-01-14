@@ -1,20 +1,21 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject } from './common';
 import {
-  DocumentReference,
-  DocumentData,
   arrayRemove,
-  refEqual,
-  doc,
+  arrayUnion,
   collection,
+  doc,
+  DocumentData,
+  DocumentReference,
+  refEqual,
+  runTransaction,
   serverTimestamp,
   Transaction,
 } from 'firebase/firestore';
-import { Comment, Forum, User, LazyStaticImage } from './types';
-import { db } from '../Firebase';
-import { arrayUnion, runTransaction } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
+import { db } from '../Firebase';
+import { LazyObject } from './common';
 import { LazyStaticVideo } from './media';
+import { Comment, Forum, LazyStaticImage, User } from './types';
 
 export class Post extends LazyObject {
   // Expected and required when getting data
@@ -207,15 +208,17 @@ export class PostMock extends Post {
     textContent: string,
     likes: User[] = [],
     comments: Comment[] = [],
-    imageContent: LazyStaticImage[] = []
+    imageContent: LazyStaticImage[] = [],
+    videoContent?: LazyStaticVideo
   ) {
     super();
     this.author = author;
     this.timestamp = timestamp;
     this.textContent = textContent;
-    this.imageContent = imageContent;
     this.likes = likes;
     this.comments = comments;
+    this.imageContent = imageContent;
+    this.videoContent = videoContent;
 
     this.hasData = true;
   }
