@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { auth, db } from '../Firebase';
-import { doc, getDoc, runTransaction, Transaction } from 'firebase/firestore';
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   signInWithEmailAndPassword,
   UserCredential,
 } from 'firebase/auth';
+import { doc, getDoc, runTransaction, Transaction } from 'firebase/firestore';
+import { auth, db } from '../Firebase';
 import { User, UserStatus } from '../types/types';
 
 /** isKnightsEmail
@@ -129,3 +129,18 @@ export async function sendAuthEmail() {
     else return sendEmailVerification(auth.currentUser);
   } else return Promise.reject('Not signed in!');
 }
+
+// Because the authstate doesnt change when an email verification happens, we have to poll for it :/
+const timer = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// eslint-disable-next-line @typescript-eslint/ban-types
+export const startWaitForVerificationPoll = (notifyVerified: Function) => {
+  if (auth.currentUser === null) return null;
+  if (!auth.currentUser!.emailVerified) {
+    timer(2500).then(() => {
+      auth.currentUser!.reload();
+      startWaitForVerificationPoll(notifyVerified);
+    });
+  } else {
+    notifyVerified();
+  }
+};
