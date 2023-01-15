@@ -29,9 +29,16 @@ export class LazyStaticVideo {
   protected videoPath: string;
   protected videoUrl?: string;
 
-  constructor(thumbnailPath: string, videoPath: string) {
+  constructor(
+    thumbnailPath: string,
+    videoPath: string,
+    thumbnailUrl?: string,
+    videoUrl?: string
+  ) {
     this.thumbnailPath = thumbnailPath;
     this.videoPath = videoPath;
+    this.thumbnailUrl = thumbnailUrl;
+    this.videoUrl = videoUrl;
   }
 
   public async getThumbnailUrl() {
