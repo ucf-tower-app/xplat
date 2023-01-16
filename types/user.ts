@@ -7,7 +7,7 @@ import {
   arrayUnion,
 } from 'firebase/firestore';
 import { runTransaction } from 'firebase/firestore';
-import { Send, Post, LazyStaticImage } from './types';
+import { Send, Post, LazyStaticImage, Comment } from './types';
 import { db, DEFAULT_AVATAR_PATH } from '../Firebase';
 
 export class User extends LazyObject {
@@ -43,6 +43,9 @@ export class User extends LazyObject {
     );
     this.followers = (data.followers ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.comments = (data.comments ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new Comment(ref)
     );
     this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
 
