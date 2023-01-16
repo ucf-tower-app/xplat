@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { containsRef, LazyObject, LazyStaticImage, UserStatus } from './common';
+import { containsRef, LazyObject, UserStatus } from './common';
 import {
   DocumentReference,
   DocumentData,
@@ -7,7 +7,7 @@ import {
   arrayUnion,
 } from 'firebase/firestore';
 import { runTransaction } from 'firebase/firestore';
-import { Send, Post } from './types';
+import { Send, Post, LazyStaticImage } from './types';
 import { db, DEFAULT_AVATAR_PATH } from '../Firebase';
 
 export class User extends LazyObject {

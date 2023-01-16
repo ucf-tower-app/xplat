@@ -6,3 +6,4 @@ export { Forum } from './forum';
 export { Post } from './post';
 export { Comment } from './comment';
 export { UserStatus, RouteStatus } from './common';
+export { LazyStaticImage } from './media';
