@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { Route, RouteStatus, User } from '../types/types';
-import { db } from '../Firebase';
 import {
   collection,
   doc,
   runTransaction,
-  Transaction,
+  Transaction
 } from 'firebase/firestore';
+import { db } from '../Firebase';
+import { Route, RouteStatus, User } from '../types/types';
 
 /** getRouteById
  * Returns a Firebase Route corresponding to the document ID provided
