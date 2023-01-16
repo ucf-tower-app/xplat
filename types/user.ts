@@ -1,14 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { containsRef, LazyObject, UserStatus } from './common';
 import {
-  DocumentReference,
-  DocumentData,
-  Transaction,
-  arrayUnion,
+  arrayUnion, DocumentData, DocumentReference, runTransaction, Transaction
 } from 'firebase/firestore';
-import { runTransaction } from 'firebase/firestore';
-import { Send, Post, LazyStaticImage } from './types';
 import { db, DEFAULT_AVATAR_PATH } from '../Firebase';
+import { containsRef, LazyObject, UserStatus } from './common';
+import { LazyStaticImage, Post, Send } from './types';
 
 export class User extends LazyObject {
   // Expected and required when getting data

@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  DocumentReference,
-  DocumentData,
-  getDoc,
+  DocumentData, DocumentReference, getDoc,
   refEqual,
-  Transaction,
+  Transaction
 } from 'firebase/firestore';
 
 export enum UserStatus {

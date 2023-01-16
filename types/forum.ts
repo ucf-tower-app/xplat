@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject } from './common';
-import { DocumentReference, DocumentData } from 'firebase/firestore';
-import { Post, Route, User } from './types';
+import { DocumentData, DocumentReference } from 'firebase/firestore';
 import { createPost } from '../api';
+import { LazyObject } from './common';
+import { Post, Route, User } from './types';
 
 export class Forum extends LazyObject {
   // Filled with defaults if not present when getting data

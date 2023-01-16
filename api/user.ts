@@ -3,7 +3,7 @@ import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   signInWithEmailAndPassword,
-  UserCredential,
+  UserCredential
 } from 'firebase/auth';
 import { doc, getDoc, runTransaction, Transaction } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
