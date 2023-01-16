@@ -5,6 +5,7 @@ import {
   DocumentData,
   Transaction,
   arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { runTransaction } from 'firebase/firestore';
 import { Send, Post } from './types';
@@ -72,6 +73,33 @@ export class User extends LazyObject {
       });
       transaction.update(other.docRef!, {
         followers: arrayUnion(this.docRef),
+      });
+    });
+  }
+
+  public async unfollowUser(other: User) {
+    // If we already have data, might as well run the free short-circuit check.
+    // We're going to run it anyways during the transaction, but if we can avoid it,
+    // might as well do it now.
+    if (this.hasData && !containsRef(this.following!, other)) return;
+
+    return runTransaction(db, async (transaction: Transaction) => {
+      const thisSnap = await transaction.get(this.docRef!);
+      const otherSnap = await transaction.get(other.docRef!);
+
+      this.initWithDocumentData(thisSnap.data()!);
+      other.initWithDocumentData(otherSnap.data()!);
+
+      if (!containsRef(this.following!, other)) return;
+
+      this.following = this.following!.filter((user) => user !== other);
+      other.followers = other.followers!.filter((user) => user !== this);
+
+      transaction.update(this.docRef!, {
+        following: arrayRemove(other.docRef),
+      });
+      transaction.update(other.docRef!, {
+        followers: arrayRemove(this.docRef),
       });
     });
   }
