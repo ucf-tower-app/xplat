@@ -45,6 +45,9 @@ export class Comment extends LazyObject {
       transaction.update(this.post!.docRef!, {
         comments: arrayRemove(this.docRef!),
       });
+      transaction.update(this.author!.docRef!, {
+        comments: arrayRemove(this.docRef!),
+      });
       transaction.delete(this.docRef!);
     });
   }

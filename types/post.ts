@@ -189,14 +189,31 @@ export class Post extends LazyObject {
     if (!this.docRef) return;
     await this.deleteStaticContent();
     return runTransaction(db, async (transaction: Transaction) => {
-      this.updateWithTransaction(transaction);
+      // Reads
+      await this.updateWithTransaction(transaction);
+      await Promise.all(
+        this.comments!.map(async (cmt) =>
+          cmt.updateWithTransaction(transaction)
+        )
+      );
 
+      // Writes
       if (this.forum)
         transaction.update(this.forum!.docRef!, {
           posts: arrayRemove(this.docRef!),
         });
+      transaction.update(this.author!.docRef!, {
+        posts: arrayRemove(this.docRef),
+      });
+      this.comments!.forEach((cmt) => {
+        cmt.getAuthor().then((author) =>
+          transaction.update(author.docRef!, {
+            comments: arrayRemove(cmt.docRef!),
+          })
+        );
+        transaction.delete(cmt.docRef!);
+      });
       transaction.delete(this.docRef!);
-      this.comments!.forEach((cmt) => transaction.delete(cmt.docRef!));
     });
   }
 }
