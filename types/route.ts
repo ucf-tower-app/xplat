@@ -1,15 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject, RouteStatus } from './common';
 import {
-  DocumentReference,
-  DocumentData,
-  runTransaction,
-  arrayUnion,
-  arrayRemove,
-  refEqual,
+  arrayRemove, arrayUnion, DocumentData, DocumentReference, refEqual, runTransaction
 } from 'firebase/firestore';
-import { User, Tag, Forum } from './types';
 import { db } from '../Firebase';
+import { LazyObject, RouteStatus } from './common';
+import { Forum, Tag, User } from './types';
 
 export class Route extends LazyObject {
   // Expected and required when getting data

@@ -9,7 +9,7 @@ import {
   refEqual,
   runTransaction,
   serverTimestamp,
-  Transaction,
+  Transaction
 } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
 import { db } from '../Firebase';

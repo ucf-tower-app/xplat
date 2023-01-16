@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { Forum, Post, User } from '../types/types';
-import { db, storage } from '../Firebase';
 import {
   arrayUnion,
   collection,
   doc,
   runTransaction,
   serverTimestamp,
-  Transaction,
+  Transaction
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
+import { db, storage } from '../Firebase';
+import { Forum, Post, User } from '../types/types';
 
 /** getPostById
  * Returns a Tower Post corresponding to the document ID provided
