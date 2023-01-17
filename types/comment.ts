@@ -50,7 +50,7 @@ export class Comment extends LazyObject {
 
   public async delete() {
     return runTransaction(db, async (transaction) => {
-      this.updateWithTransaction(transaction);
+      await this.updateWithTransaction(transaction);
       transaction.update(this.post!.docRef!, {
         comments: arrayRemove(this.docRef!),
       });

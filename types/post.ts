@@ -154,6 +154,16 @@ export class Post extends LazyObject {
     return this.videoContent !== undefined;
   }
 
+  public async getStaticContentStorageRefs() {
+    if (!this.hasData) await this.getData();
+    const res = this.imageContent!.map((img) => img.getStorageRef());
+    if (this.videoContent) {
+      res.push(this.videoContent.getThumbnailStorageRef());
+      res.push(this.videoContent.getVideoStorageRef());
+    }
+    return res;
+  }
+
   public async getVideoThumbnailUrl() {
     if (!this.hasData) await this.getData();
     return this.videoContent!.getThumbnailUrl();

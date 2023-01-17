@@ -11,6 +11,10 @@ export class LazyStaticImage {
     this.imageUrl = imageUrl;
   }
 
+  public pathEqual(path: string) {
+    return this.imagePath === path;
+  }
+
   public async getImageUrl() {
     if (this.imageUrl === undefined) {
       this.imageUrl = await getUrl(this.imagePath);

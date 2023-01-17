@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  DocumentData, DocumentReference, getDoc,
+  DocumentData,
+  DocumentReference,
+  getDoc,
   refEqual,
   Transaction
 } from 'firebase/firestore';
@@ -11,13 +13,13 @@ export enum UserStatus {
   Approved = 2,
   Employee = 3,
   Manager = 4,
-  Developer = 5,
+  Developer = 5
 }
 
 export enum RouteStatus {
   Draft = 0,
   Active = 1,
-  Archived = 2,
+  Archived = 2
 }
 
 export abstract class LazyObject {
@@ -26,8 +28,8 @@ export abstract class LazyObject {
 
   protected abstract initWithDocumentData(data: DocumentData): void;
 
-  public async getData(): Promise<void> {
-    if (this.hasData) return Promise.resolve();
+  public async getData(forceUpdate: boolean = false): Promise<void> {
+    if (this.hasData && !forceUpdate) return;
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');
 
