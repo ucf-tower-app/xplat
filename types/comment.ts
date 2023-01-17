@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { arrayRemove, DocumentData, runTransaction } from 'firebase/firestore';
+import {
+  arrayRemove,
+  DocumentData,
+  runTransaction,
+  updateDoc,
+} from 'firebase/firestore';
 import { db } from '../Firebase';
 import { LazyObject } from './common';
 import { Post, User } from './types';
@@ -37,6 +42,10 @@ export class Comment extends LazyObject {
   public async getPost() {
     if (!this.hasData) await this.getData();
     return this.post!;
+  }
+
+  public async edit(textContent: string) {
+    return updateDoc(this.docRef!, { textContent: textContent });
   }
 
   public async delete() {
