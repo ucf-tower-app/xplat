@@ -6,12 +6,13 @@ import {
   doc,
   DocumentData,
   DocumentReference,
+  increment,
   refEqual,
   runTransaction,
   serverTimestamp,
   Transaction,
 } from 'firebase/firestore';
-import { deleteObject } from 'firebase/storage';
+import { deleteObject, getMetadata } from 'firebase/storage';
 import { db } from '../Firebase';
 import { LazyObject } from './common';
 import { LazyStaticVideo } from './media';
@@ -178,6 +179,19 @@ export class Post extends LazyObject {
     return this._isSaved!;
   }
 
+  public async getStaticContentSizeInBytes() {
+    if (!this.hasData) await this.getData();
+    const tasks = this.imageContent!.map((img) =>
+      getMetadata(img.getStorageRef())
+    );
+    if (this.videoContent) {
+      tasks.push(getMetadata(this.videoContent.getThumbnailStorageRef()));
+      tasks.push(getMetadata(this.videoContent.getVideoStorageRef()));
+    }
+    const metas = await Promise.all(tasks);
+    return metas.reduce((sum, meta) => sum + meta.size, 0);
+  }
+
   public async deleteStaticContent() {
     if (!this.hasData) await this.getData();
     const deleteImages =
@@ -197,6 +211,7 @@ export class Post extends LazyObject {
 
   public async delete() {
     if (!this.docRef) return;
+    const size = await this.getStaticContentSizeInBytes();
     await this.deleteStaticContent();
     return runTransaction(db, async (transaction: Transaction) => {
       // Reads
@@ -214,6 +229,7 @@ export class Post extends LazyObject {
         });
       transaction.update(this.author!.docRef!, {
         posts: arrayRemove(this.docRef),
+        totalPostSizeInBytes: increment(-size),
       });
       this.comments!.forEach((cmt) => {
         cmt.getAuthor().then((author) =>

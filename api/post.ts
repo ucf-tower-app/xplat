@@ -3,11 +3,12 @@ import {
   arrayUnion,
   collection,
   doc,
+  increment,
   runTransaction,
   serverTimestamp,
-  Transaction
+  Transaction,
 } from 'firebase/firestore';
-import { ref, uploadBytes } from 'firebase/storage';
+import { ref, uploadBytes, UploadResult } from 'firebase/storage';
 import { db, storage } from '../Firebase';
 import { Forum, Post, User } from '../types/types';
 
@@ -38,31 +39,42 @@ export async function createPost(
   videoContent: { video: Blob; thumbnail: Blob } | undefined = undefined
 ) {
   const newPostDocRef = doc(collection(db, 'posts'));
-  const videoUpload =
-    videoContent &&
-    Promise.all([
+  const uploads: Promise<UploadResult>[] = [];
+  if (videoContent) {
+    uploads.push(
       uploadBytes(
         ref(storage, 'posts/videos/' + newPostDocRef.id + '_video'),
         videoContent.video
-      ),
+      )
+    );
+    uploads.push(
       uploadBytes(
         ref(storage, 'posts/videos/' + newPostDocRef.id + '_thumbnail'),
         videoContent.thumbnail
       )
-    ]);
+    );
+  }
   if (imageContent) {
-    await Promise.all(
-      imageContent!.map((img, idx) =>
+    imageContent.forEach((img, idx) =>
+      uploads.push(
         uploadBytes(ref(storage, 'posts/' + newPostDocRef.id + '_' + idx), img)
       )
     );
   }
-  await videoUpload;
+
+  const results = await Promise.all(uploads);
+  const postSizeInBytes = results.reduce(
+    (sum, result) => sum + result.metadata.size,
+    0
+  );
 
   return runTransaction(db, async (transaction: Transaction) => {
     if (forum)
       transaction.update(forum.docRef!, { posts: arrayUnion(newPostDocRef) });
-    transaction.update(author.docRef!, { posts: arrayUnion(newPostDocRef) });
+    transaction.update(author.docRef!, {
+      posts: arrayUnion(newPostDocRef),
+      totalPostSizeInBytes: increment(postSizeInBytes),
+    });
     transaction.set(newPostDocRef, {
       author: author.docRef!,
       timestamp: serverTimestamp(),
@@ -71,9 +83,9 @@ export async function createPost(
       ...(imageContent && {
         imageContent: imageContent!.map(
           (_, idx) => 'posts/' + newPostDocRef.id + '_' + idx
-        )
+        ),
       }),
-      ...(videoContent && { videoContent: 'posts/videos/' + newPostDocRef.id })
+      ...(videoContent && { videoContent: 'posts/videos/' + newPostDocRef.id }),
     });
     return new Post(newPostDocRef);
   });

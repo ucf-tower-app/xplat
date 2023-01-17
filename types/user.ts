@@ -34,6 +34,7 @@ export class User extends LazyObject {
   protected posts?: Post[];
   protected avatar?: LazyStaticImage;
   protected comments?: Comment[];
+  protected totalPostSizeInBytes?: number;
 
   protected initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -57,6 +58,7 @@ export class User extends LazyObject {
       (ref: DocumentReference<DocumentData>) => new Comment(ref)
     );
     this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
+    this.totalPostSizeInBytes = data.totalPostSizeInBytes ?? 0;
 
     this.hasData = true;
   }
@@ -96,6 +98,11 @@ export class User extends LazyObject {
   public async getAvatarUrl() {
     if (!this.hasData) await this.getData();
     return this.avatar!.getImageUrl();
+  }
+
+  public async getTotalPostSizeInBytes() {
+    if (!this.hasData) await this.getData();
+    return this.totalPostSizeInBytes!;
   }
 
   public async getUsername() {

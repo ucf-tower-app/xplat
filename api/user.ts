@@ -3,7 +3,7 @@ import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   signInWithEmailAndPassword,
-  UserCredential
+  UserCredential,
 } from 'firebase/auth';
 import { doc, getDoc, runTransaction, Transaction } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
@@ -24,6 +24,7 @@ export function isKnightsEmail(email: string): boolean {
  * @param password: The new user's plaintext password
  * @param username: The new user's username
  * @param displayName: The new user's display name
+ * @returns: The new Tower User
  * @throws if email already exists
  * @throws if password is invalid
  */
@@ -33,17 +34,18 @@ export async function createUser(
   username: string,
   displayName: string
 ) {
+  if (await getUserByUsername(username))
+    return Promise.reject('Username taken');
   return createUserWithEmailAndPassword(auth, email, password).then(
     (cred: UserCredential) => {
       return runTransaction(db, async (transaction: Transaction) => {
         const newDocRef = doc(db, 'users', cred.user.uid);
         const cacheDocRef = doc(db, 'caches', 'users');
 
-        const map = (await transaction.get(cacheDocRef)).data()!
-          .usernameToUserID;
-        map[username] = cred.user.uid;
+        const map = (await transaction.get(cacheDocRef)).data()!.usernameToUser;
+        map[username] = newDocRef;
 
-        transaction.update(cacheDocRef, { usernameToUserID: map });
+        transaction.update(cacheDocRef, { usernameToUser: map });
         transaction.set(newDocRef, {
           username: username,
           email: email,
@@ -51,6 +53,7 @@ export async function createUser(
           bio: "I'm a new climber!",
           status: UserStatus.Unverified,
         });
+        return new User(newDocRef);
       });
     }
   );
@@ -99,8 +102,8 @@ export function getUserById(id: string) {
 export async function getUserByUsername(username: string) {
   return getDoc(doc(db, 'caches', 'users'))
     .then((snap) => {
-      const map = snap.get('usernameToUserID');
-      if (map[username]) return getUserById(map[username]);
+      const map = snap.get('usernameToUser');
+      if (map[username]) return new User(map[username]);
       else return undefined;
     })
     .catch(() => undefined);
