@@ -48,7 +48,7 @@ export async function createPost(
       uploadBytes(
         ref(storage, 'posts/videos/' + newPostDocRef.id + '_thumbnail'),
         videoContent.thumbnail
-      ),
+      )
     ]);
   if (imageContent) {
     await Promise.all(
@@ -71,9 +71,9 @@ export async function createPost(
       ...(imageContent && {
         imageContent: imageContent!.map(
           (_, idx) => 'posts/' + newPostDocRef.id + '_' + idx
-        ),
+        )
       }),
-      ...(videoContent && { videoContent: 'posts/videos/' + newPostDocRef.id }),
+      ...(videoContent && { videoContent: 'posts/videos/' + newPostDocRef.id })
     });
     return new Post(newPostDocRef);
   });

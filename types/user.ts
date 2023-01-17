@@ -1,8 +1,21 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  arrayUnion, DocumentData, DocumentReference, runTransaction, Transaction
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from 'firebase/auth';
+import {
+  arrayRemove,
+  arrayUnion,
+  deleteDoc,
+  doc,
+  DocumentData,
+  DocumentReference,
+  runTransaction,
+  Transaction,
 } from 'firebase/firestore';
-import { db, DEFAULT_AVATAR_PATH } from '../Firebase';
+import { deleteObject } from 'firebase/storage';
+import { auth, db, DEFAULT_AVATAR_PATH } from '../Firebase';
 import { containsRef, LazyObject, UserStatus } from './common';
 import { Comment, LazyStaticImage, Post, Send } from './types';
 
@@ -29,7 +42,7 @@ export class User extends LazyObject {
     this.bio = data.bio;
     this.status = data.status as UserStatus;
     this.posts = (data.posts ?? []).map(
-      (ref: DocumentReference<DocumentData>) => new Send(ref)
+      (ref: DocumentReference<DocumentData>) => new Post(ref)
     );
     this.sends = (data.sends ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Send(ref)
@@ -128,6 +141,94 @@ export class User extends LazyObject {
   public async getFollowers() {
     if (!this.hasData) await this.getData();
     return this.followers!;
+  }
+
+  /**
+   * Delete a user. Requires that the user to be deleted is the current auth user.
+   * Deletes all relevant effects from the user such as:
+   * - Posts and Comments
+   * - Avatar
+   * - Cache entries
+   * @param password: The user's auth password. Required by auth.
+   */
+
+  public async delete(password: string) {
+    if (!auth.currentUser) return Promise.reject('Not signed in!');
+    if (auth.currentUser.uid != this.docRef!.id)
+      return Promise.reject(
+        'Cannot delete User to which you are not signed in.'
+      );
+    await this.getData(true);
+    // Force update to have best non-guaranteed recent data
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, password)
+    );
+
+    const preTasks: Promise<any>[] = [];
+
+    this.posts!.forEach((post) => {
+      console.log(post);
+      preTasks.push(post.delete());
+    });
+    this.comments!.forEach((comment) => preTasks.push(comment.delete()));
+
+    if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
+      preTasks.push(deleteObject(this.avatar.getStorageRef()));
+
+    await Promise.all(preTasks);
+    console.log('Pre-tasks done');
+
+    // Now, all comments and posts we've ever made have *probably* been deleted.
+    // However, to be sure, we'll collect some tasks to do after the main transaction.
+    const postActions = await runTransaction(db, async (transaction) => {
+      // Definitions
+      const usernameCacheDocRef = doc(db, 'caches', 'users');
+
+      // Reads
+      const usernameCacheRead = transaction.get(usernameCacheDocRef);
+      const thisUpdate = this.updateWithTransaction(transaction);
+
+      await thisUpdate;
+      const usernameMap = (await usernameCacheRead).data()!.usernameToUserID;
+      // Writes
+
+      const postActions: { posts: Post[]; comments: Comment[] } = {
+        posts: this.posts!,
+        comments: this.comments!,
+      };
+
+      this.followers!.forEach((follower) =>
+        transaction.update(follower.docRef!, {
+          following: arrayRemove(this.docRef!),
+        })
+      );
+      this.following!.forEach((following) =>
+        transaction.update(following.docRef!, {
+          followers: arrayRemove(this.docRef!),
+        })
+      );
+
+      delete usernameMap[this.username!];
+
+      transaction.update(usernameCacheDocRef, {
+        usernameToUserID: usernameMap,
+      });
+
+      return postActions;
+    });
+    console.log('Main transaction done');
+
+    const postTasks: Promise<any>[] = [];
+    postActions.posts.forEach((post) => postTasks.push(post.delete()));
+    postActions.comments.forEach((comment) => postTasks.push(comment.delete()));
+
+    await Promise.all(postTasks);
+    console.log('Post-tasks done');
+    await deleteDoc(this.docRef!);
+    console.log('Document deleted');
+    await deleteUser(auth.currentUser!);
+    console.log('Auth deleted');
   }
 }
 

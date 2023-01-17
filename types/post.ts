@@ -9,7 +9,7 @@ import {
   refEqual,
   runTransaction,
   serverTimestamp,
-  Transaction
+  Transaction,
 } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
 import { db } from '../Firebase';
@@ -151,6 +151,16 @@ export class Post extends LazyObject {
   public async hasVideoContent() {
     if (!this.hasData) await this.getData();
     return this.videoContent !== undefined;
+  }
+
+  public async getStaticContentStorageRefs() {
+    if (!this.hasData) await this.getData();
+    const res = this.imageContent!.map((img) => img.getStorageRef());
+    if (this.videoContent) {
+      res.push(this.videoContent.getThumbnailStorageRef());
+      res.push(this.videoContent.getVideoStorageRef());
+    }
+    return res;
   }
 
   public async getVideoThumbnailUrl() {
