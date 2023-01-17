@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  DocumentReference,
   DocumentData,
+  DocumentReference,
   getDoc,
   refEqual,
 } from 'firebase/firestore';
@@ -22,6 +22,33 @@ export enum RouteStatus {
   Draft = 0,
   Active = 1,
   Archived = 2,
+}
+
+export class ArrayCursor<T> {
+  public data: T[];
+  private idx: number;
+  private stride: number;
+
+  constructor(data: T[], stride = 10) {
+    this.data = data;
+    this.idx = 0;
+    this.stride = stride;
+  }
+
+  public hasNext() {
+    return this.idx < this.data.length;
+  }
+
+  public getNext(stride: number | undefined) {
+    if (!this.hasNext()) return [];
+    const res = this.data.slice(this.idx, this.idx + (stride ?? this.stride));
+    this.idx += stride ?? this.stride;
+    return res;
+  }
+
+  public forEachNext<Q>(stride: number | undefined, callback: (arg: T) => Q) {
+    return this.getNext(stride).map(callback);
+  }
 }
 
 export abstract class LazyObject {
