@@ -2,8 +2,10 @@
 import {
   collection,
   doc,
+  DocumentReference,
+  getDoc,
   runTransaction,
-  Transaction
+  Transaction,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
 import { Route, RouteStatus, User } from '../types/types';
@@ -34,12 +36,13 @@ export function createRoute(
   return runTransaction(db, async (transaction: Transaction) => {
     const newRouteDocRef = doc(collection(db, 'routes'));
     const newForumDocRef = doc(collection(db, 'forums'));
-    const cacheDocRef = doc(db, 'caches', 'routeNameToID');
+    const cacheDocRef = doc(db, 'caches', 'allRoutes');
 
-    const map = (await transaction.get(cacheDocRef)).data()!.map;
-    map[name] = newRouteDocRef.id;
+    const routeNameToRoute = (await transaction.get(cacheDocRef)).data()!
+      .routeNameToRoute;
+    routeNameToRoute[name] = newRouteDocRef;
 
-    transaction.update(cacheDocRef, { map: map });
+    transaction.update(cacheDocRef, { routeNameToRoute: routeNameToRoute });
     transaction.set(newRouteDocRef, {
       name: name,
       rating: rating,
@@ -54,4 +57,30 @@ export function createRoute(
 
     return new Route(newRouteDocRef);
   });
+}
+
+/** getActiveRoutes
+ * Get a list of all the active routes
+ * @returns A list of Tower Routes
+ */
+export async function getActiveRoutes() {
+  const cacheDocRef = doc(db, 'caches', 'activeRoutes');
+  const routeNameToRoute: Object = (await getDoc(cacheDocRef)).data()!
+    .routeNameToRoute;
+  return Object.values(routeNameToRoute).map(
+    (ref: DocumentReference) => new Route(ref)
+  );
+}
+
+/** getAllRoutes
+ * Get a list of all the active and archived routes
+ * @returns A list of Tower Routes
+ */
+export async function getAllRoutes() {
+  const cacheDocRef = doc(db, 'caches', 'allRoutes');
+  const routeNameToRoute: Object = (await getDoc(cacheDocRef)).data()!
+    .routeNameToRoute;
+  return Object.values(routeNameToRoute).map(
+    (ref: DocumentReference) => new Route(ref)
+  );
 }
