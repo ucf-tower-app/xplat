@@ -212,7 +212,7 @@ export class User extends LazyObject {
       delete usernameMap[this.username!];
 
       transaction.update(usernameCacheDocRef, {
-        usernameToUserID: usernameMap,
+        usernameToUser: usernameMap,
       });
 
       return postActions;
