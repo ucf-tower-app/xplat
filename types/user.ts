@@ -190,7 +190,7 @@ export class User extends LazyObject {
       const thisUpdate = this.updateWithTransaction(transaction);
 
       await thisUpdate;
-      const usernameMap = (await usernameCacheRead).data()!.usernameToUserID;
+      const usernameMap = (await usernameCacheRead).data()!.usernameToUser;
       // Writes
 
       const postActions: { posts: Post[]; comments: Comment[] } = {
