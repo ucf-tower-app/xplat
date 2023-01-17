@@ -4,7 +4,7 @@ import {
   DocumentReference,
   getDoc,
   refEqual,
-  Transaction
+  Transaction,
 } from 'firebase/firestore';
 
 export enum UserStatus {
@@ -13,13 +13,13 @@ export enum UserStatus {
   Approved = 2,
   Employee = 3,
   Manager = 4,
-  Developer = 5
+  Developer = 5,
 }
 
 export enum RouteStatus {
   Draft = 0,
   Active = 1,
-  Archived = 2
+  Archived = 2,
 }
 
 export class ArrayCursor<T> {
@@ -55,7 +55,7 @@ export abstract class LazyObject {
 
   protected abstract initWithDocumentData(data: DocumentData): void;
 
-  public async getData(forceUpdate: boolean = false): Promise<void> {
+  public async getData(forceUpdate = false): Promise<void> {
     if (this.hasData && !forceUpdate) return;
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');

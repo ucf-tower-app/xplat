@@ -13,3 +13,7 @@ export const auth = getAuth();
 export const storage = getStorage();
 
 export const DEFAULT_AVATAR_PATH = 'avatars/climber.png';
+export const BOULDER_ROUTETYPE = 'Boulder';
+export const TOPROPE_ROUTETYPE = 'Top-Rope';
+export const TRAVERSE_ROUTETYPE = 'Traverse';
+export const LEADCLIMB_ROUTETYPE = 'Lead-Climb';
