@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  arrayRemove,
-  arrayUnion,
   DocumentData,
   DocumentReference,
+  arrayRemove,
+  arrayUnion,
   refEqual,
   runTransaction,
 } from 'firebase/firestore';
@@ -29,7 +29,7 @@ export class Route extends LazyObject {
   protected thumbnail?: LazyStaticImage;
   protected rope?: number;
 
-  protected initWithDocumentData(data: DocumentData): void {
+  public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
     this.rating = data.rating;
     this.forum = new Forum(data.forum);

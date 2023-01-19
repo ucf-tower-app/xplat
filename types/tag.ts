@@ -6,7 +6,7 @@ export class Tag extends LazyObject {
   protected name: string | undefined;
   protected description: string | undefined;
 
-  protected initWithDocumentData(data: DocumentData): void {
+  public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
     this.description = data.description;
 

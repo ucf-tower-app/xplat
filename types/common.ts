@@ -53,7 +53,7 @@ export abstract class LazyObject {
   public docRef: DocumentReference<DocumentData> | undefined;
   protected hasData: boolean;
 
-  protected abstract initWithDocumentData(data: DocumentData): void;
+  public abstract initWithDocumentData(data: DocumentData): void;
 
   public async getData(forceUpdate = false): Promise<void> {
     if (this.hasData && !forceUpdate) return;

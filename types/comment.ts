@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  arrayRemove,
   DocumentData,
+  arrayRemove,
   runTransaction,
   updateDoc,
 } from 'firebase/firestore';
@@ -15,7 +15,7 @@ export class Comment extends LazyObject {
   protected textContent?: string;
   protected post?: Post;
 
-  protected initWithDocumentData(data: DocumentData) {
+  public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
     this.timestamp = data.timestamp;
     this.textContent = data.textContent;
