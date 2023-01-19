@@ -9,7 +9,14 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
-import { Route, RouteClassifier, RouteStatus, Tag, User } from '../types/types';
+import {
+  Route,
+  RouteClassifier,
+  RouteStatus,
+  RouteType,
+  Tag,
+  User,
+} from '../types/types';
 
 /** getRouteById
  * Returns a Firebase Route corresponding to the document ID provided
@@ -113,4 +120,59 @@ export async function getAllRoutes() {
     await getDoc(cacheDocRef)
   ).data()!.routeNameToRoute;
   return Object.values(routeNameToRoute).map((ref) => new Route(ref));
+}
+
+/** getAllBoulderClassifiers
+ * Get list of all boulder classifiers
+ */
+export function getAllBoulderClassifiers() {
+  return [-1, 0, 1, 2, 3, 4, 5, 6, 7].map(
+    (x) => new RouteClassifier(x, RouteType.Boulder)
+  );
+}
+
+/** getAllTraverseRouteClassifiers
+ * Get list of all traverse classifiers
+ */
+export function getAllTraverseRouteClassifiers() {
+  return [1, 2, 3, 4].map((x) => new RouteClassifier(x, RouteType.Traverse));
+}
+
+/** getAllTopropeRouteClassifiers
+ * Get list of all toprope classifiers
+ */
+export function getAllTopropeRouteClassifiers() {
+  return [
+    49, 50, 51, 59, 60, 61, 69, 70, 71, 79, 80, 81, 89, 90, 91, 99, 100, 101,
+    109, 110, 111, 119, 120, 121, 129, 130, 131,
+  ].map((x) => new RouteClassifier(x, RouteType.Toprope));
+}
+
+/** getAllLeadclimbRouteClassifiers
+ * Get list of all lead climb classifiers
+ */
+export function getAllLeadclimbRouteClassifiers() {
+  return [
+    49, 50, 51, 59, 60, 61, 69, 70, 71, 79, 80, 81, 89, 90, 91, 99, 100, 101,
+    109, 110, 111, 119, 120, 121, 129, 130, 131,
+  ].map((x) => new RouteClassifier(x, RouteType.Leadclimb));
+}
+
+/** getAllCompetitionRouteClassifiers
+ * Get list of all comp route classifiers
+ */
+export function getAllCompetitionRouteClassifiers() {
+  return [1, 2, 3, 4].map((x) => new RouteClassifier(x, RouteType.Competition));
+}
+
+/** getAllRouteClassifiers
+ * Get list of all route classifiers of all types
+ */
+export function getAllRouteClassifiers() {
+  return getAllBoulderClassifiers().concat(
+    getAllTraverseRouteClassifiers(),
+    getAllLeadclimbRouteClassifiers(),
+    getAllCompetitionRouteClassifiers(),
+    getAllTopropeRouteClassifiers()
+  );
 }
