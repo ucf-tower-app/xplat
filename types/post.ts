@@ -11,6 +11,7 @@ import {
   refEqual,
   runTransaction,
   serverTimestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { deleteObject, getMetadata } from 'firebase/storage';
 import { db } from '../Firebase';
@@ -190,6 +191,10 @@ export class Post extends LazyObject {
     }
     const metas = await Promise.all(tasks);
     return metas.reduce((sum, meta) => sum + meta.size, 0);
+  }
+
+  public async editTextContent(textContent: string) {
+    return updateDoc(this.docRef!, { textContent: textContent });
   }
 
   public async deleteStaticContent() {
