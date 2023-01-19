@@ -8,15 +8,64 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { LazyObject, RouteStatus } from './common';
+import { LazyObject } from './common';
 import { Forum, LazyStaticImage, Tag, User } from './types';
+
+export enum RouteType {
+  Boulder = 'Boulder',
+  Toprope = 'Top-Rope',
+  Traverse = 'Traverse',
+  Leadclimb = 'Lead-Climb',
+  Competition = 'Competition',
+}
+
+export enum RouteStatus {
+  Draft = 0,
+  Active = 1,
+  Archived = 2,
+}
+
+/** RouteClassifier class
+ * Given a route type and grade number, respective user-displayable string
+ * @param rawgrade: The number stored in firebase and backend objects
+ * @param routeType: The associated routeType
+ * Boulder: grade x returns 'Vx', except x=-1, which is 'VB'
+ * Traverse/Comp: Grade x where x is in [1,26] returns A-Z as expected
+ * Toprope/Leadclimb: Grade x returns '5.<round(x/10)>'. If x is not divisible by 10, the bias will be the +/- as expected.
+ * E.g. Toprope 61 -> '5.6+', Toprope 69 -> '5.7-', Toprope 70 -> '5.7'
+ */
+export class RouteClassifier {
+  public type: RouteType;
+  public rawgrade: number;
+  public displayString: string;
+  constructor(rawgrade: number, type: RouteType) {
+    this.type = type;
+    this.rawgrade = rawgrade;
+    this.displayString = gradeToDisplayString(rawgrade, type);
+  }
+}
+
+function gradeToDisplayString(grade: number, type: RouteType) {
+  if (type == RouteType.Boulder) {
+    if (grade == -1) return 'VB';
+    else return 'V' + grade;
+  } else if (type == RouteType.Traverse || type == RouteType.Competition) {
+    return String.fromCharCode(65 /*A = 65*/ + grade - 1);
+  } else {
+    return (
+      '5.' +
+      Math.round(grade / 10) +
+      (grade % 10 == 1 ? '+' : '') +
+      (grade % 10 == 9 ? '-' : '')
+    );
+  }
+}
 
 export class Route extends LazyObject {
   // Expected and required when getting data
   protected name?: string;
-  protected rating?: string;
+  protected classifier?: RouteClassifier;
   protected forum?: Forum;
-  protected type?: string;
 
   // Filled with defaults if not present when getting data
   protected likes?: User[];
@@ -30,10 +79,15 @@ export class Route extends LazyObject {
   protected rope?: number;
 
   public initWithDocumentData(data: DocumentData): void {
+    console.log('Init with data:');
+    console.log(data);
+
     this.name = data.name;
-    this.rating = data.rating;
+    this.classifier = new RouteClassifier(
+      data.rawgrade,
+      data.type as RouteType
+    );
     this.forum = new Forum(data.forum);
-    this.type = data.type;
 
     this.likes = (data.likes ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
@@ -96,9 +150,14 @@ export class Route extends LazyObject {
     return this.name!;
   }
 
-  public async getRating() {
+  public async getGradeDisplayString() {
     if (!this.hasData) await this.getData();
-    return this.rating!;
+    return this.classifier!.displayString;
+  }
+
+  public async getType() {
+    if (!this.hasData) await this.getData();
+    return this.classifier!.type;
   }
 
   public async hasSetter() {
@@ -131,11 +190,6 @@ export class Route extends LazyObject {
     return this.status!;
   }
 
-  public async getType() {
-    if (!this.hasData) await this.getData();
-    return this.type!;
-  }
-
   public async hasThumbnail() {
     if (!this.hasData) await this.getData();
     return this.thumbnail !== undefined;
@@ -155,7 +209,7 @@ export class Route extends LazyObject {
 export class RouteMock extends Route {
   constructor(
     name: string,
-    rating: string,
+    classifier: RouteClassifier,
     setter: User,
     forum: Forum,
     likes: User[],
@@ -163,7 +217,7 @@ export class RouteMock extends Route {
   ) {
     super();
     this.name = name;
-    this.rating = rating;
+    this.classifier = classifier;
     this.setter = setter;
     this.forum = forum;
     this.likes = likes;

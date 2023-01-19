@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
-import { Route, RouteStatus, Tag, User } from '../types/types';
+import { Route, RouteClassifier, RouteStatus, Tag, User } from '../types/types';
 
 /** getRouteById
  * Returns a Firebase Route corresponding to the document ID provided
@@ -24,8 +24,7 @@ export function getRouteById(routeId: string) {
 
 export interface CreateRouteArgs {
   name: string;
-  rating: string;
-  type: string;
+  classifier: RouteClassifier;
   description?: string;
   tags?: Tag[];
   setter?: User;
@@ -36,8 +35,7 @@ export interface CreateRouteArgs {
 /** createRoute
  * Creates a route
  * @param name: The route's name
- * @param rating: The route's rating, e.g. 'V0', '5.12+'
- * @param type: The route's type, e.g. 'Boulder'
+ * @param classifier: The route's classifier
  * @param description: Optional, the route's description
  * @param tags: Optional, a list of Tag, the route's tags
  * @param setter: Optional, the Tower User of the setter
@@ -47,8 +45,7 @@ export interface CreateRouteArgs {
  */
 export async function createRoute({
   name,
-  rating,
-  type,
+  classifier,
   description = undefined,
   tags = undefined,
   setter = undefined,
@@ -75,8 +72,8 @@ export async function createRoute({
     transaction.update(cacheDocRef, { routeNameToRoute: routeNameToRoute });
     transaction.set(newRouteDocRef, {
       name: name,
-      rating: rating,
-      type: type,
+      rawgrade: classifier.rawgrade,
+      type: classifier.type as string,
       ...(setter && { setter: setter.docRef! }),
       ...(rope && { rope: rope }),
       ...(tags && { tags: tags }),
