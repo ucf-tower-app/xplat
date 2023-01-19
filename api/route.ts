@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
+  DocumentReference,
+  Transaction,
   collection,
   doc,
-  DocumentReference,
   getDoc,
   runTransaction,
-  Transaction,
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
@@ -36,8 +36,13 @@ export interface CreateRouteArgs {
 /** createRoute
  * Creates a route
  * @param name: The route's name
- * @param rating: The route's rating
- * @param setter: The Tower User of the setter, or undefined. Defaults to undefined.
+ * @param rating: The route's rating, e.g. 'V0', '5.12+'
+ * @param type: The route's type, e.g. 'Boulder'
+ * @param description: Optional, the route's description
+ * @param tags: Optional, a list of Tag, the route's tags
+ * @param setter: Optional, the Tower User of the setter
+ * @param rope: Optional, which rope the route is on / closest to
+ * @param thumbnail: Optional, the route's thumbnail
  * @returns The newly created Route
  */
 export async function createRoute({
