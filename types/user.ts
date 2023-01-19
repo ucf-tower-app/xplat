@@ -1,22 +1,22 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  deleteUser,
   EmailAuthProvider,
+  deleteUser,
   reauthenticateWithCredential,
 } from 'firebase/auth';
 import {
+  DocumentData,
+  DocumentReference,
+  Transaction,
   arrayRemove,
   arrayUnion,
   deleteDoc,
   doc,
-  DocumentData,
-  DocumentReference,
   runTransaction,
-  Transaction,
 } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
-import { auth, db, DEFAULT_AVATAR_PATH } from '../Firebase';
-import { containsRef, LazyObject, UserStatus } from './common';
+import { DEFAULT_AVATAR_PATH, auth, db } from '../Firebase';
+import { LazyObject, UserStatus, containsRef } from './common';
 import { Comment, LazyStaticImage, Post, Send } from './types';
 
 export class User extends LazyObject {
@@ -36,7 +36,7 @@ export class User extends LazyObject {
   protected comments?: Comment[];
   protected totalPostSizeInBytes?: number;
 
-  protected initWithDocumentData(data: DocumentData): void {
+  public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
     this.email = data.email;
     this.displayName = data.displayName;

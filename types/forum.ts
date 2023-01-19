@@ -12,7 +12,7 @@ export class Forum extends LazyObject {
   // Might remain undefined even if has data
   protected route?: Route;
 
-  protected initWithDocumentData(data: DocumentData) {
+  public initWithDocumentData(data: DocumentData) {
     this.posts = (data.posts ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Post(ref)
     );
