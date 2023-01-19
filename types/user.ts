@@ -63,6 +63,11 @@ export class User extends LazyObject {
     this.hasData = true;
   }
 
+  /** followUser
+   * Follow a user.
+   * @param other: The User to follow
+   * @remarks both this and other's following and follower lists will be updated
+   */
   public async followUser(other: User) {
     // If we already have data, might as well run the free short-circuit check.
     // We're going to run it anyways during the transaction, but if we can avoid it,
@@ -90,67 +95,7 @@ export class User extends LazyObject {
     });
   }
 
-  public async getPosts() {
-    if (!this.hasData) await this.getData();
-    return this.posts!;
-  }
-
-  public async getAvatarUrl() {
-    if (!this.hasData) await this.getData();
-    return this.avatar!.getImageUrl();
-  }
-
-  public async getTotalPostSizeInBytes() {
-    if (!this.hasData) await this.getData();
-    return this.totalPostSizeInBytes!;
-  }
-
-  public async getUsername() {
-    if (!this.hasData) await this.getData();
-    return this.username!;
-  }
-
-  public async getEmail() {
-    if (!this.hasData) await this.getData();
-    return this.email!;
-  }
-
-  public async getDisplayName() {
-    if (!this.hasData) await this.getData();
-    return this.displayName!;
-  }
-
-  public async getBio() {
-    if (!this.hasData) await this.getData();
-    return this.bio!;
-  }
-
-  public async getStatus() {
-    if (!this.hasData) await this.getData();
-    return this.status!;
-  }
-
-  public async getComments() {
-    if (!this.hasData) await this.getData();
-    return this.comments!;
-  }
-
-  public async getSends() {
-    if (!this.hasData) await this.getData();
-    return this.sends!;
-  }
-
-  public async getFollowing() {
-    if (!this.hasData) await this.getData();
-    return this.following!;
-  }
-
-  public async getFollowers() {
-    if (!this.hasData) await this.getData();
-    return this.followers!;
-  }
-
-  /**
+  /** delete
    * Delete a user. Requires that the user to be deleted is the current auth user.
    * Deletes all relevant effects from the user such as:
    * - Posts and Comments
@@ -158,7 +103,6 @@ export class User extends LazyObject {
    * - Cache entries
    * @param password: The user's auth password. Required by auth.
    */
-
   public async delete(password: string) {
     if (!auth.currentUser) return Promise.reject('Not signed in!');
     if (auth.currentUser.uid != this.docRef!.id)
@@ -236,6 +180,91 @@ export class User extends LazyObject {
     console.log('Document deleted');
     await deleteUser(auth.currentUser!);
     console.log('Auth deleted');
+  }
+
+  // ======================== Trivial Getters Below ========================
+  /** getPosts()
+   */
+  public async getPosts() {
+    if (!this.hasData) await this.getData();
+    return this.posts!;
+  }
+
+  /** getAvatarUrl()
+   */
+  public async getAvatarUrl() {
+    if (!this.hasData) await this.getData();
+    return this.avatar!.getImageUrl();
+  }
+
+  /** getTotalPostSizeInBytes()
+   */
+  public async getTotalPostSizeInBytes() {
+    if (!this.hasData) await this.getData();
+    return this.totalPostSizeInBytes!;
+  }
+
+  /** getUsername()
+   */
+  public async getUsername() {
+    if (!this.hasData) await this.getData();
+    return this.username!;
+  }
+
+  /** getEmail()
+   */
+  public async getEmail() {
+    if (!this.hasData) await this.getData();
+    return this.email!;
+  }
+
+  /** getDisplayName()
+   */
+  public async getDisplayName() {
+    if (!this.hasData) await this.getData();
+    return this.displayName!;
+  }
+
+  /** getBio()
+   */
+  public async getBio() {
+    if (!this.hasData) await this.getData();
+    return this.bio!;
+  }
+
+  /** getStatus()
+   */
+  public async getStatus() {
+    if (!this.hasData) await this.getData();
+    return this.status!;
+  }
+
+  /** getComments()
+   */
+  public async getComments() {
+    if (!this.hasData) await this.getData();
+    return this.comments!;
+  }
+
+  /** getSends()
+   */
+  public async getSends() {
+    if (!this.hasData) await this.getData();
+    return this.sends!;
+  }
+
+  /** getFollowing()
+   */
+  public async getFollowing() {
+    if (!this.hasData) await this.getData();
+    return this.following!;
+  }
+
+  /** getFollowers()
+   */
+  public async getFollowers() {
+    if (!this.hasData) await this.getData();
+    return this.followers!;
   }
 }
 

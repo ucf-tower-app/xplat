@@ -24,30 +24,18 @@ export class Comment extends LazyObject {
     this.hasData = true;
   }
 
-  public async getAuthor() {
-    if (!this.hasData) await this.getData();
-    return this.author!;
-  }
-
-  public async getTimestamp() {
-    if (!this.hasData) await this.getData();
-    return this.timestamp!;
-  }
-
-  public async getTextContent() {
-    if (!this.hasData) await this.getData();
-    return this.textContent!;
-  }
-
-  public async getPost() {
-    if (!this.hasData) await this.getData();
-    return this.post!;
-  }
-
+  /** edit
+   * Edit this comment
+   * @param textContent: the new content
+   */
   public async edit(textContent: string) {
+    this.textContent = textContent;
     return updateDoc(this.docRef!, { textContent: textContent });
   }
 
+  /** delete
+   * Delete this comment
+   */
   public async delete() {
     return runTransaction(db, async (transaction) => {
       await this.updateWithTransaction(transaction);
@@ -59,6 +47,36 @@ export class Comment extends LazyObject {
       });
       transaction.delete(this.docRef!);
     });
+  }
+
+  // ======================== Trivial Getters Below ========================
+
+  /** getAuthor
+   */
+  public async getAuthor() {
+    if (!this.hasData) await this.getData();
+    return this.author!;
+  }
+
+  /** getTimestamp
+   */
+  public async getTimestamp() {
+    if (!this.hasData) await this.getData();
+    return this.timestamp!;
+  }
+
+  /** getTextContent
+   */
+  public async getTextContent() {
+    if (!this.hasData) await this.getData();
+    return this.textContent!;
+  }
+
+  /** getPost
+   */
+  public async getPost() {
+    if (!this.hasData) await this.getData();
+    return this.post!;
   }
 }
 
