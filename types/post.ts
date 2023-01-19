@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
+  DocumentData,
+  DocumentReference,
+  Transaction,
   arrayRemove,
   arrayUnion,
   collection,
   doc,
-  DocumentData,
-  DocumentReference,
   increment,
   refEqual,
   runTransaction,
   serverTimestamp,
-  Transaction,
 } from 'firebase/firestore';
 import { deleteObject, getMetadata } from 'firebase/storage';
 import { db } from '../Firebase';
@@ -34,7 +34,7 @@ export class Post extends LazyObject {
   protected forum?: Forum;
   protected videoContent?: LazyStaticVideo;
 
-  protected initWithDocumentData(data: DocumentData) {
+  public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
     this.timestamp = data.timestamp;
     this.textContent = data.textContent;

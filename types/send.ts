@@ -8,7 +8,7 @@ export class Send extends LazyObject {
   protected timestamp: Date | undefined;
   protected route: Route | undefined;
 
-  protected initWithDocumentData(data: DocumentData): void {
+  public initWithDocumentData(data: DocumentData): void {
     this.attempts = data.attempts;
     this.timestamp = data.timestamp;
     this.route = new Route(data.route);

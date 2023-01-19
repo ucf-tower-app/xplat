@@ -1,6 +1,6 @@
 import { ref } from 'firebase/storage';
-import { getUrl } from '../api';
 import { storage } from '../Firebase';
+import { getUrl } from '../api';
 
 export class LazyStaticImage {
   protected imagePath: string;

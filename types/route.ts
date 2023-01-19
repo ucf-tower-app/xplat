@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  arrayRemove, arrayUnion, DocumentData, DocumentReference, refEqual, runTransaction
+  DocumentData,
+  DocumentReference,
+  arrayRemove,
+  arrayUnion,
+  refEqual,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
 import { LazyObject, RouteStatus } from './common';
@@ -20,7 +25,7 @@ export class Route extends LazyObject {
   // Might remain undefined even if has data
   protected setter?: User;
 
-  protected initWithDocumentData(data: DocumentData): void {
+  public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
     this.rating = data.rating;
     this.forum = new Forum(data.forum);

@@ -6,7 +6,7 @@ export class Badge extends LazyObject {
   protected name: string | undefined;
   protected description: string | undefined;
 
-  protected initWithDocumentData(data: DocumentData) {
+  public initWithDocumentData(data: DocumentData) {
     this.name = data.name;
     this.description = data.description;
 
