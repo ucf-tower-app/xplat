@@ -6,6 +6,7 @@ export * from './api/cursors';
 export * from './api/forum';
 export * from './api/post';
 export * from './api/route';
+export * from './api/send';
 export * from './api/user';
 
 export async function getUrl(path: string) {

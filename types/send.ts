@@ -10,7 +10,9 @@ export class Send extends LazyObject {
 
   public initWithDocumentData(data: DocumentData): void {
     this.attempts = data.attempts;
-    this.timestamp = data.timestamp;
+    this.timestamp = new Date(
+      data.timestamp.seconds * 1000 + data.timestamp.nanoseconds / 1000000
+    );
     this.route = new Route(data.route);
 
     this.hasData = true;
