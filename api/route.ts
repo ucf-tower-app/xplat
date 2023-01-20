@@ -1,15 +1,16 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  DocumentReference,
   Transaction,
   collection,
   doc,
-  getDoc,
+  orderBy,
   runTransaction,
+  where,
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
 import {
+  QueryCursor,
   Route,
   RouteClassifier,
   RouteStatus,
@@ -98,28 +99,32 @@ export async function createRoute({
   });
 }
 
-/** getActiveRoutes
- * Get a list of all the active routes
+/** getActiveRoutesCursor
+ * Get a cursor for all active routes from most recent
  * @returns A list of Tower Routes
  */
-export async function getActiveRoutes() {
-  const cacheDocRef = doc(db, 'caches', 'activeRoutes');
-  const routeNameToRoute: Record<string, DocumentReference> = (
-    await getDoc(cacheDocRef)
-  ).data()!.routeNameToRoute;
-  return Object.values(routeNameToRoute).map((ref) => new Route(ref));
+export function getActiveRoutesCursor() {
+  return new QueryCursor<Route>(
+    Route,
+    5,
+    collection(db, 'routes'),
+    where('status', '==', RouteStatus.Active),
+    orderBy('timestamp', 'desc')
+  );
 }
 
-/** getAllRoutes
- * Get a list of all the active and archived routes
+/** getAllRoutesCursor
+ * Get a cursor for all active and archived routes from most recent
  * @returns A list of Tower Routes
  */
-export async function getAllRoutes() {
-  const cacheDocRef = doc(db, 'caches', 'allRoutes');
-  const routeNameToRoute: Record<string, DocumentReference> = (
-    await getDoc(cacheDocRef)
-  ).data()!.routeNameToRoute;
-  return Object.values(routeNameToRoute).map((ref) => new Route(ref));
+export function getAllRoutesCursor() {
+  return new QueryCursor<Route>(
+    Route,
+    5,
+    collection(db, 'routes'),
+    where('status', 'in', [RouteStatus.Active, RouteStatus.Archived]),
+    orderBy('timestamp', 'desc')
+  );
 }
 
 /** getAllBoulderClassifiers

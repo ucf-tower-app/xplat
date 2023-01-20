@@ -6,6 +6,7 @@ import {
   arrayUnion,
   refEqual,
   runTransaction,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
 import { LazyObject } from './common';
@@ -77,6 +78,7 @@ export class Route extends LazyObject {
   protected setter?: User;
   protected thumbnail?: LazyStaticImage;
   protected rope?: number;
+  protected timestamp?: Date;
 
   public initWithDocumentData(data: DocumentData): void {
     console.log('Init with data:');
@@ -101,10 +103,15 @@ export class Route extends LazyObject {
     if (data.setter) this.setter = new User(data.setter);
     if (data.thumbnail) this.thumbnail = new LazyStaticImage(data.thumbnail);
     if (data.rope) this.rope = data.rope;
+    if (data.timestamp) this.timestamp = data.timestamp;
 
     this.hasData = true;
   }
 
+  /** Route::addLike()
+   * Given a user, like a route if they haven't liked it.
+   * @remarks updates this route's list of likes
+   */
   public async addLike(user: User) {
     if (this.hasData && (await this.likedBy(user))) return;
     await runTransaction(db, async (transaction) => {
@@ -113,6 +120,10 @@ export class Route extends LazyObject {
     if (this.hasData) this.likes?.push(user);
   }
 
+  /** Route::removeLike()
+   * Given a user, unlike a route if they've liked it.
+   * @remarks updates this route's list of likes
+   */
   public async removeLike(user: User) {
     if (this.hasData && !(await this.likedBy(user))) return;
     await runTransaction(db, async (transaction) => {
@@ -124,77 +135,147 @@ export class Route extends LazyObject {
       );
   }
 
+  /** Route::upgradeStatus()
+   * Upgrade the status of this route, iff the *actual status* (in the database) of the route is currently equal to what this object has.
+   * @remarks updates this object's status
+   */
+  public async upgradeStatus() {
+    const client_oldStatus = await this.getStatus();
+
+    return runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
+      const server_oldStatus = await this.getStatus();
+      if (client_oldStatus != server_oldStatus) return;
+      if (client_oldStatus == RouteStatus.Archived) return;
+      else if (client_oldStatus == RouteStatus.Draft) {
+        transaction.update(this.docRef!, {
+          status: RouteStatus.Active,
+          timestamp: serverTimestamp(),
+        });
+        this.status = RouteStatus.Active;
+      } else {
+        transaction.update(this.docRef!, { status: RouteStatus.Archived });
+        this.status = RouteStatus.Archived;
+      }
+    });
+  }
+
+  // ======================== Trivial Getters Below ========================
+  /** likedBy
+   */
   public async likedBy(user: User) {
     return this.getLikes().then((likes) =>
       likes.some((like) => refEqual(like.docRef!, user.docRef!))
     );
   }
 
+  /** hasTimestamp
+   */
+  public async hasTimestamp(user: User) {
+    if (!this.hasData) await this.getData();
+    return this.timestamp !== undefined;
+  }
+
+  /** getTimestamp
+   */
+  public async getTimestamp(user: User) {
+    if (!this.hasData) await this.getData();
+    return this.timestamp!;
+  }
+
+  /** getDescription
+   */
   public async getDescription() {
     if (!this.hasData) await this.getData();
     return this.description!;
   }
 
+  /** hasRope
+   */
   public async hasRope() {
     if (!this.hasData) await this.getData();
     return this.rope !== undefined;
   }
 
+  /** getRope
+   */
   public async getRope() {
     if (!this.hasData) await this.getData();
     return this.rope!;
   }
 
+  /** getName
+   */
   public async getName() {
     if (!this.hasData) await this.getData();
     return this.name!;
   }
 
+  /** getGradeDisplayString
+   */
   public async getGradeDisplayString() {
     if (!this.hasData) await this.getData();
     return this.classifier!.displayString;
   }
 
+  /** getType
+   */
   public async getType() {
     if (!this.hasData) await this.getData();
     return this.classifier!.type;
   }
 
+  /** hasSetter
+   */
   public async hasSetter() {
     if (!this.hasData) await this.getData();
     return this.setter !== undefined;
   }
 
+  /** getSetter
+   */
   public async getSetter() {
     if (!this.hasData) await this.getData();
     return this.setter!;
   }
 
+  /** getForum
+   */
   public async getForum() {
     if (!this.hasData) await this.getData();
     return this.forum!;
   }
 
+  /** getLikes
+   */
   public async getLikes() {
     if (!this.hasData) await this.getData();
     return this.likes!;
   }
 
+  /** getTags
+   */
   public async getTags() {
     if (!this.hasData) await this.getData();
     return this.tags!;
   }
 
+  /** getStatus
+   */
   public async getStatus() {
     if (!this.hasData) await this.getData();
     return this.status!;
   }
 
+  /** hasThumbnail
+   */
   public async hasThumbnail() {
     if (!this.hasData) await this.getData();
     return this.thumbnail !== undefined;
   }
 
+  /** getThumbnailUrl
+   */
   public async getThumbnailUrl() {
     if (!this.hasData) await this.getData();
     return this.thumbnail!.getImageUrl();
