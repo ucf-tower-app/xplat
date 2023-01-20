@@ -55,7 +55,7 @@ export abstract class LazyObject {
 
   public abstract initWithDocumentData(data: DocumentData): void;
 
-  public async getData(forceUpdate: boolean = false): Promise<void> {
+  public async getData(forceUpdate = false): Promise<void> {
     if (this.hasData && !forceUpdate) return;
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');

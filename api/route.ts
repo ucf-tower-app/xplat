@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
+  DocumentReference,
+  Transaction,
   collection,
   doc,
-  DocumentReference,
   getDoc,
   runTransaction,
-  Transaction,
 } from 'firebase/firestore';
-import { db } from '../Firebase';
-import { Route, RouteStatus, User } from '../types/types';
+import { ref, uploadBytes } from 'firebase/storage';
+import { db, storage } from '../Firebase';
+import { Route, RouteStatus, Tag, User } from '../types/types';
 
 /** getRouteById
  * Returns a Firebase Route corresponding to the document ID provided
@@ -21,21 +22,50 @@ export function getRouteById(routeId: string) {
   return new Route(doc(db, 'routes', routeId));
 }
 
+export interface CreateRouteArgs {
+  name: string;
+  rating: string;
+  type: string;
+  description?: string;
+  tags?: Tag[];
+  setter?: User;
+  rope?: number;
+  thumbnail?: Blob;
+}
+
 /** createRoute
  * Creates a route
  * @param name: The route's name
- * @param rating: The route's rating
- * @param setter: The Tower User of the setter, or undefined. Defaults to undefined.
+ * @param rating: The route's rating, e.g. 'V0', '5.12+'
+ * @param type: The route's type, e.g. 'Boulder'
+ * @param description: Optional, the route's description
+ * @param tags: Optional, a list of Tag, the route's tags
+ * @param setter: Optional, the Tower User of the setter
+ * @param rope: Optional, which rope the route is on / closest to
+ * @param thumbnail: Optional, the route's thumbnail
  * @returns The newly created Route
  */
-export function createRoute(
-  name: string,
-  rating: string,
-  setter: User | undefined = undefined
-) {
+export async function createRoute({
+  name,
+  rating,
+  type,
+  description = undefined,
+  tags = undefined,
+  setter = undefined,
+  rope = undefined,
+  thumbnail = undefined,
+}: CreateRouteArgs) {
+  const newRouteDocRef = doc(collection(db, 'routes'));
+  const newForumDocRef = doc(collection(db, 'forums'));
+
+  if (thumbnail) {
+    await uploadBytes(
+      ref(storage, 'routeThumbnails/' + newRouteDocRef.id),
+      thumbnail
+    );
+  }
+
   return runTransaction(db, async (transaction: Transaction) => {
-    const newRouteDocRef = doc(collection(db, 'routes'));
-    const newForumDocRef = doc(collection(db, 'forums'));
     const cacheDocRef = doc(db, 'caches', 'allRoutes');
 
     const routeNameToRoute = (await transaction.get(cacheDocRef)).data()!
@@ -46,7 +76,12 @@ export function createRoute(
     transaction.set(newRouteDocRef, {
       name: name,
       rating: rating,
+      type: type,
       ...(setter && { setter: setter.docRef! }),
+      ...(rope && { rope: rope }),
+      ...(tags && { tags: tags }),
+      ...(description && { description: description }),
+      ...(thumbnail && { thumbnail: 'routeThumbnails/' + newRouteDocRef.id }),
       forum: newForumDocRef,
       status: RouteStatus.Draft,
     });
@@ -65,11 +100,10 @@ export function createRoute(
  */
 export async function getActiveRoutes() {
   const cacheDocRef = doc(db, 'caches', 'activeRoutes');
-  const routeNameToRoute: Object = (await getDoc(cacheDocRef)).data()!
-    .routeNameToRoute;
-  return Object.values(routeNameToRoute).map(
-    (ref: DocumentReference) => new Route(ref)
-  );
+  const routeNameToRoute: Record<string, DocumentReference> = (
+    await getDoc(cacheDocRef)
+  ).data()!.routeNameToRoute;
+  return Object.values(routeNameToRoute).map((ref) => new Route(ref));
 }
 
 /** getAllRoutes
@@ -78,9 +112,8 @@ export async function getActiveRoutes() {
  */
 export async function getAllRoutes() {
   const cacheDocRef = doc(db, 'caches', 'allRoutes');
-  const routeNameToRoute: Object = (await getDoc(cacheDocRef)).data()!
-    .routeNameToRoute;
-  return Object.values(routeNameToRoute).map(
-    (ref: DocumentReference) => new Route(ref)
-  );
+  const routeNameToRoute: Record<string, DocumentReference> = (
+    await getDoc(cacheDocRef)
+  ).data()!.routeNameToRoute;
+  return Object.values(routeNameToRoute).map((ref) => new Route(ref));
 }
