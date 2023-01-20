@@ -5,7 +5,13 @@ import {
   sendEmailVerification,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { Transaction, doc, getDoc, runTransaction } from 'firebase/firestore';
+import {
+  Transaction,
+  doc,
+  getDoc,
+  runTransaction,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { auth, db } from '../Firebase';
 import { User, UserStatus } from '../types/types';
 
@@ -71,6 +77,7 @@ export async function createUser(
           displayName: displayName,
           bio: "I'm a new climber!",
           status: UserStatus.Unverified,
+          createdOn: serverTimestamp(),
         });
         return new User(newDocRef);
       });
@@ -81,25 +88,12 @@ export async function createUser(
 /** getCurrentUser
  * Get the current auth user, and return the corresponding Tower User
  * @returns The corresponding Tower User object
- * @remarks If the User is marked as Unverified but meet the qualifications,
- * this function will update their status accordingly.
  * @throws If the user is not signed in
  */
 export async function getCurrentUser() {
   if (auth.currentUser === null)
     return Promise.reject('Failed to authenticate');
-  const res = new User(doc(db, 'users', auth.currentUser.uid));
-  if (
-    auth.currentUser.emailVerified &&
-    (await res.getStatus()) === UserStatus.Unverified &&
-    isKnightsEmail(await res.getEmail())
-  ) {
-    return runTransaction(db, async (transaction) => {
-      transaction.update(res.docRef!, {
-        status: UserStatus.Verified,
-      });
-    }).then(() => new User(doc(db, 'users', auth.currentUser!.uid)));
-  } else return res;
+  return new User(doc(db, 'users', auth.currentUser.uid));
 }
 
 /** getUserById
@@ -155,14 +149,24 @@ export async function sendAuthEmail() {
 // Because the authstate doesnt change when an email verification happens, we have to poll for it :/
 const timer = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // eslint-disable-next-line @typescript-eslint/ban-types
-export const startWaitForVerificationPoll = (notifyVerified: Function) => {
+export const startWaitForVerificationPoll = (
+  notifyVerified: (user: User) => any
+) => {
   if (auth.currentUser === null) return null;
+  if (auth.currentUser.email === null) return null;
+
   if (!auth.currentUser!.emailVerified) {
     timer(2500).then(() => {
-      auth.currentUser!.reload();
-      startWaitForVerificationPoll(notifyVerified);
+      auth
+        .currentUser!.reload()
+        .then(() => startWaitForVerificationPoll(notifyVerified));
     });
   } else {
-    notifyVerified();
+    runTransaction(db, async (transaction) => {
+      const res = new User(doc(db, 'users', auth.currentUser!.uid));
+      await res.updateWithTransaction(transaction);
+      res.verifyEmailWithinTransaction(auth.currentUser!.email!, transaction);
+      return res;
+    }).then(notifyVerified);
   }
 };
