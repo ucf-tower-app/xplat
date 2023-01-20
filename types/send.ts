@@ -15,17 +15,24 @@ export class Send extends LazyObject {
 
     this.hasData = true;
   }
+  // ======================== Trivial Getters Below ========================
 
+  /** getAttempts
+   */
   public async getAttempts() {
     if (!this.hasData) await this.getData();
     return this.attempts!;
   }
 
+  /** getTimestamp
+   */
   public async getTimestamp() {
     if (!this.hasData) await this.getData();
     return this.timestamp!;
   }
 
+  /** getRoute
+   */
   public async getRoute() {
     if (!this.hasData) await this.getData();
     return this.route!;

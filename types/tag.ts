@@ -13,11 +13,17 @@ export class Tag extends LazyObject {
     this.hasData = true;
   }
 
+  // ======================== Trivial Getters Below ========================
+
+  /** getName
+   */
   public async getName() {
     if (!this.hasData) await this.getData();
     return this.name!;
   }
 
+  /** getDescription
+   */
   public async getDescription() {
     if (!this.hasData) await this.getData();
     return this.description!;
