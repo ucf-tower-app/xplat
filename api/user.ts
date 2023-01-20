@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
+  UserCredential,
   createUserWithEmailAndPassword,
   sendEmailVerification,
   signInWithEmailAndPassword,
-  UserCredential,
 } from 'firebase/auth';
-import { doc, getDoc, runTransaction, Transaction } from 'firebase/firestore';
+import { Transaction, doc, getDoc, runTransaction } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
 import { User, UserStatus } from '../types/types';
 
@@ -16,6 +16,22 @@ import { User, UserStatus } from '../types/types';
  */
 export function isKnightsEmail(email: string): boolean {
   return email.endsWith('@knights.ucf.edu') || email.endsWith('@ucf.edu');
+}
+
+/** validUsername
+ * Check whether a username is 5-15 lowercase a-z characters
+ * @param username
+ */
+export function validUsername(username: string): boolean {
+  return username.match('^[a-z]{5,15}$') !== null;
+}
+
+/** validDisplayname
+ * Check whether a displayname is 5-30 lower or upper a-z characters plus spaces, with no leading or trailing spaces
+ * @param displayname
+ */
+export function validDisplayname(displayname: string): boolean {
+  return displayname.match('^[a-zA-Z][a-zA-Z ]{3,28}[a-zA-Z]$') !== null;
 }
 
 /** createUser
@@ -34,6 +50,9 @@ export async function createUser(
   username: string,
   displayName: string
 ) {
+  if (!validUsername(username)) return Promise.reject('Invalid Username!');
+  if (!validDisplayname(displayName))
+    return Promise.reject('Invalid Display Name!');
   if (await getUserByUsername(username))
     return Promise.reject('Username taken');
   return createUserWithEmailAndPassword(auth, email, password).then(
