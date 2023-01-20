@@ -182,6 +182,75 @@ export class User extends LazyObject {
     console.log('Auth deleted');
   }
 
+  public async approveOtherUser(other: User) {
+    if (!auth.currentUser) return Promise.reject('Not signed in!');
+    if (auth.currentUser.uid != this.docRef!.id)
+      return Promise.reject('Cannot approve users on behalf of someone else.');
+
+    return runTransaction(db, async (transaction) => {
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        other.updateWithTransaction(transaction),
+      ]);
+      if (
+        this.status! >= UserStatus.Employee &&
+        other.status! <= UserStatus.Verified
+      ) {
+        other.status = UserStatus.Approved;
+        transaction.update(other.docRef!, { status: UserStatus.Approved });
+      }
+    });
+  }
+
+  public async promoteOtherToEmployee(other: User) {
+    if (!auth.currentUser) return Promise.reject('Not signed in!');
+    if (auth.currentUser.uid != this.docRef!.id)
+      return Promise.reject('Cannot promote users on behalf of someone else.');
+
+    return runTransaction(db, async (transaction) => {
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        other.updateWithTransaction(transaction),
+      ]);
+      if (
+        this.status! >= UserStatus.Manager &&
+        other.status! <= UserStatus.Approved
+      ) {
+        other.status = UserStatus.Employee;
+        transaction.update(other.docRef!, { status: UserStatus.Employee });
+      }
+    });
+  }
+
+  public async promoteOtherToManager(password: string, other: User) {
+    if (!auth.currentUser) return Promise.reject('Not signed in!');
+    if (auth.currentUser.uid != this.docRef!.id)
+      return Promise.reject('Cannot promote users on behalf of someone else.');
+
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, password)
+    );
+
+    return runTransaction(db, async (transaction) => {
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        other.updateWithTransaction(transaction),
+      ]);
+      if (
+        this.status! >= UserStatus.Manager &&
+        other.status! == UserStatus.Employee
+      ) {
+        other.status = UserStatus.Manager;
+        transaction.update(other.docRef!, { status: UserStatus.Manager });
+        if (this.status! == UserStatus.Manager) {
+          this.status! = UserStatus.Employee;
+          transaction.update(this.docRef!, { status: UserStatus.Employee });
+        }
+      }
+    });
+  }
+
   // ======================== Trivial Getters Below ========================
   /** getPosts()
    */
