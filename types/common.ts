@@ -16,12 +16,6 @@ export enum UserStatus {
   Developer = 5,
 }
 
-export enum RouteStatus {
-  Draft = 0,
-  Active = 1,
-  Archived = 2,
-}
-
 export class ArrayCursor<T> {
   public data: T[];
   private idx: number;
