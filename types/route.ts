@@ -81,9 +81,6 @@ export class Route extends LazyObject {
   protected timestamp?: Date;
 
   public initWithDocumentData(data: DocumentData): void {
-    console.log('Init with data:');
-    console.log(data);
-
     this.name = data.name;
     this.classifier = new RouteClassifier(
       data.rawgrade,
@@ -103,7 +100,10 @@ export class Route extends LazyObject {
     if (data.setter) this.setter = new User(data.setter);
     if (data.thumbnail) this.thumbnail = new LazyStaticImage(data.thumbnail);
     if (data.rope) this.rope = data.rope;
-    if (data.timestamp) this.timestamp = data.timestamp;
+    if (data.timestamp)
+      this.timestamp = new Date(
+        data.timestamp.seconds * 1000 + data.timestamp.nanoseconds / 1000000
+      );
 
     this.hasData = true;
   }

@@ -37,7 +37,9 @@ export class Post extends LazyObject {
 
   public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
-    this.timestamp = data.timestamp;
+    this.timestamp = new Date(
+      data.timestamp.seconds * 1000 + data.timestamp.nanoseconds / 1000000
+    );
     this.textContent = data.textContent;
 
     this.likes = (data.likes ?? []).map(
