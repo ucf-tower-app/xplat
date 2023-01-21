@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
 import { DEFAULT_AVATAR_PATH, auth, db } from '../Firebase';
+import { isKnightsEmail } from '../api';
 import { LazyObject, UserStatus, containsRef } from './common';
 import { Comment, LazyStaticImage, Post, Send } from './types';
 
@@ -249,6 +250,12 @@ export class User extends LazyObject {
         }
       }
     });
+  }
+
+  public verifyEmailWithinTransaction(email: string, transaction: Transaction) {
+    if (isKnightsEmail(email)) this.status = UserStatus.Approved;
+    else this.status = UserStatus.Verified;
+    transaction.update(this.docRef!, { status: this.status });
   }
 
   // ======================== Trivial Getters Below ========================
