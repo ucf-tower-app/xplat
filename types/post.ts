@@ -15,9 +15,14 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getMetadata } from 'firebase/storage';
 import { db } from '../Firebase';
-import { LazyObject } from './common';
-import { LazyStaticVideo } from './media';
-import { Comment, Forum, LazyStaticImage, User } from './types';
+import {
+  Comment,
+  Forum,
+  LazyObject,
+  LazyStaticImage,
+  LazyStaticVideo,
+  User,
+} from './types';
 
 export class Post extends LazyObject {
   // Expected and required when getting data

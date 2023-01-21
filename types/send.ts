@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { DocumentData } from 'firebase/firestore';
-import { LazyObject } from './common';
-import { Route } from './types';
+import { LazyObject, Route } from './types';
 
 export class Send extends LazyObject {
   protected attempts: number | undefined;

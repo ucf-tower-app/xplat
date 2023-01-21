@@ -6,8 +6,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { LazyObject } from './common';
-import { Post, User } from './types';
+import { LazyObject, Post, User } from './types';
 
 export class Comment extends LazyObject {
   protected author?: User;
