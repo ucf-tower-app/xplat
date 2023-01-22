@@ -9,8 +9,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { LazyObject } from './common';
-import { Forum, LazyStaticImage, Tag, User } from './types';
+import { Forum, LazyObject, LazyStaticImage, Tag, User } from './types';
 
 export enum RouteType {
   Boulder = 'Boulder',

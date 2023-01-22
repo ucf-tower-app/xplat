@@ -17,8 +17,15 @@ import {
 import { deleteObject } from 'firebase/storage';
 import { DEFAULT_AVATAR_PATH, auth, db } from '../Firebase';
 import { isKnightsEmail } from '../api';
-import { LazyObject, UserStatus, containsRef } from './common';
-import { Comment, LazyStaticImage, Post, Send } from './types';
+import {
+  Comment,
+  LazyObject,
+  LazyStaticImage,
+  Post,
+  Send,
+  UserStatus,
+  containsRef,
+} from './types';
 
 export class User extends LazyObject {
   // Expected and required when getting data
@@ -181,6 +188,143 @@ export class User extends LazyObject {
     console.log('Document deleted');
     await deleteUser(auth.currentUser!);
     console.log('Auth deleted');
+  }
+
+  /** approveOtherUser
+   * Approve another user, if this is an employee or higher and the other user is not Approved or higher
+   * @param other: The user to approve
+   * @remarks Updates other's status
+   */
+  public async approveOtherUser(other: User) {
+    await this.checkIfSignedIn();
+
+    return runTransaction(db, async (transaction) => {
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        other.updateWithTransaction(transaction),
+      ]);
+      if (
+        this.status! >= UserStatus.Employee &&
+        other.status! <= UserStatus.Verified
+      ) {
+        other.status = UserStatus.Approved;
+        transaction.update(other.docRef!, { status: UserStatus.Approved });
+      }
+    });
+  }
+
+  /** promoteOtherToEmployee
+   * Promote a user to Employee, if this is a manager
+   * @param other: The user to promote
+   * @remarks Updates other's status
+   */
+  public async promoteOtherToEmployee(other: User) {
+    await this.checkIfSignedIn();
+
+    return runTransaction(db, async (transaction) => {
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        other.updateWithTransaction(transaction),
+      ]);
+      if (
+        this.status! >= UserStatus.Manager &&
+        other.status! <= UserStatus.Approved
+      ) {
+        other.status = UserStatus.Employee;
+        transaction.update(other.docRef!, { status: UserStatus.Employee });
+      }
+    });
+  }
+
+  /** promoteOtherToManager
+   * Promote a user to Manager, if this is a manager. Downgrades this to employee.
+   * @param other: The user to promote
+   * @remarks Updates this and other's statuses
+   */
+  public async promoteOtherToManager(password: string, other: User) {
+    await this.checkIfSignedIn();
+
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, password)
+    );
+
+    return runTransaction(db, async (transaction) => {
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        other.updateWithTransaction(transaction),
+      ]);
+      if (
+        this.status! >= UserStatus.Manager &&
+        other.status! == UserStatus.Employee
+      ) {
+        other.status = UserStatus.Manager;
+        transaction.update(other.docRef!, { status: UserStatus.Manager });
+        if (this.status! == UserStatus.Manager) {
+          this.status! = UserStatus.Employee;
+          transaction.update(this.docRef!, { status: UserStatus.Employee });
+        }
+      }
+    });
+  }
+
+  /** demoteEmployeeToApproved
+   * Downgrade an employee to Approved, if this is a manager
+   * @param other: The user to demote
+   * @remarks Updates other's status
+   */
+  public async demoteEmployeeToApproved(other: User) {
+    await this.checkIfSignedIn();
+
+    return runTransaction(db, async (transaction) => {
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        other.updateWithTransaction(transaction),
+      ]);
+      if (
+        this.status! >= UserStatus.Manager &&
+        other.status! == UserStatus.Employee
+      ) {
+        other.status = UserStatus.Approved;
+        transaction.update(other.docRef!, { status: UserStatus.Approved });
+      }
+    });
+  }
+
+  /** demoteToVerified
+   * Downgrade an employee to an Verified employee, if this is an employee.
+   * This essentially sets a user to read-only, and will serve as a soft ban.
+   * @param other: The user to demote
+   * @remarks Updates other's status
+   */
+  public async demoteToVerified(other: User) {
+    await this.checkIfSignedIn();
+
+    return runTransaction(db, async (transaction) => {
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        other.updateWithTransaction(transaction),
+      ]);
+      if (
+        this.status! >= UserStatus.Manager &&
+        other.status! <= UserStatus.Employee
+      ) {
+        other.status = UserStatus.Verified;
+        transaction.update(other.docRef!, { status: UserStatus.Verified });
+      }
+    });
+  }
+
+  /** checkIfSignedIn
+   * Checks if this Tower User is the current auth user.
+   * @returns A resolved promise if this is the current auth user.
+   */
+  public async checkIfSignedIn(): Promise<void> {
+    if (!auth.currentUser) return Promise.reject('Not signed in!');
+    if (auth.currentUser.uid != this.docRef!.id)
+      return Promise.reject(
+        'Cannot perform this action on behalf of someone else.'
+      );
   }
 
   public verifyEmailWithinTransaction(email: string, transaction: Transaction) {

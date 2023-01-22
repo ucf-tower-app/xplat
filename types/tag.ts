@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { DocumentData } from 'firebase/firestore';
-import { LazyObject } from './common';
+import { LazyObject } from './types';
 
 export class Tag extends LazyObject {
   protected name: string | undefined;
