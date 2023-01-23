@@ -9,10 +9,10 @@ import { db } from '../Firebase';
 import { LazyObject, Post, User } from './types';
 
 export class Comment extends LazyObject {
-  protected author?: User;
-  protected timestamp?: Date;
-  protected textContent?: string;
-  protected post?: Post;
+  public author?: User;
+  public timestamp?: Date;
+  public textContent?: string;
+  public post?: Post;
 
   public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);

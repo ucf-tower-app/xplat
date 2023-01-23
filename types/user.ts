@@ -30,20 +30,20 @@ import {
 
 export class User extends LazyObject {
   // Expected and required when getting data
-  protected username?: string;
-  protected email?: string;
-  protected displayName?: string;
-  protected bio?: string;
-  protected status?: UserStatus;
+  public username?: string;
+  public email?: string;
+  public displayName?: string;
+  public bio?: string;
+  public status?: UserStatus;
 
   // Filled with defaults if not present when getting data
-  protected sends?: Send[];
-  protected following?: User[];
-  protected followers?: User[];
-  protected posts?: Post[];
-  protected avatar?: LazyStaticImage;
-  protected comments?: Comment[];
-  protected totalPostSizeInBytes?: number;
+  public sends?: Send[];
+  public following?: User[];
+  public followers?: User[];
+  public posts?: Post[];
+  public avatar?: LazyStaticImage;
+  public comments?: Comment[];
+  public totalPostSizeInBytes?: number;
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -104,7 +104,7 @@ export class User extends LazyObject {
     });
   }
 
-    /** unfollowUser
+  /** unfollowUser
    * Unfollow a user.
    * @param other: The User to unfollow
    * @remarks both this and other's following and follower lists will be updated

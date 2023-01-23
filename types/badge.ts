@@ -3,8 +3,8 @@ import { DocumentData } from 'firebase/firestore';
 import { LazyObject } from './types';
 
 export class Badge extends LazyObject {
-  protected name: string | undefined;
-  protected description: string | undefined;
+  public name: string | undefined;
+  public description: string | undefined;
 
   public initWithDocumentData(data: DocumentData) {
     this.name = data.name;
