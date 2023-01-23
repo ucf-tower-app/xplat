@@ -141,7 +141,7 @@ export function getAllBoulderClassifiers() {
  * @param boulderString: The boulder string to convert
  */
 export function convertBoulderStringToClassifier(boulderString: string) {
-  const rawgrade = boulderString.includes('-1')
+  const rawgrade = boulderString.endsWith('B')
     ? -1
     : parseInt(boulderString[boulderString.length - 1]);
   return new RouteClassifier(rawgrade, RouteType.Boulder);
@@ -159,7 +159,7 @@ export function getAllTraverseRouteClassifiers() {
  * @param traverseString: The traverse string to convert
  */
 export function convertTraverseStringToClassifier(traverseString: string) {
-  const rawgrade = traverseString.charCodeAt(0) - 'A'.charCodeAt(0);
+  const rawgrade = traverseString.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
   return new RouteClassifier(rawgrade, RouteType.Traverse);
 }
 
@@ -219,7 +219,7 @@ export function getAllCompetitionRouteClassifiers() {
 export function convertCompetitionStringToClassifier(
   competitionString: string
 ) {
-  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0);
+  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
   return new RouteClassifier(rawgrade, RouteType.Competition);
 }
 
