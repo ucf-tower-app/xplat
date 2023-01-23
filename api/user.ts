@@ -1,11 +1,17 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
+  UserCredential,
   createUserWithEmailAndPassword,
   sendEmailVerification,
   signInWithEmailAndPassword,
-  UserCredential,
 } from 'firebase/auth';
-import { doc, getDoc, runTransaction, Transaction } from 'firebase/firestore';
+import {
+  Transaction,
+  doc,
+  getDoc,
+  runTransaction,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { auth, db } from '../Firebase';
 import { User, UserStatus } from '../types/types';
 
@@ -18,12 +24,29 @@ export function isKnightsEmail(email: string): boolean {
   return email.endsWith('@knights.ucf.edu') || email.endsWith('@ucf.edu');
 }
 
+/** validUsername
+ * Check whether a username is 5-15 lowercase a-z characters
+ * @param username
+ */
+export function validUsername(username: string): boolean {
+  return username.match('^[a-z]{5,15}$') !== null;
+}
+
+/** validDisplayname
+ * Check whether a displayname is 5-30 lower or upper a-z characters plus spaces, with no leading or trailing spaces
+ * @param displayname
+ */
+export function validDisplayname(displayname: string): boolean {
+  return displayname.match('^[a-zA-Z][a-zA-Z ]{3,28}[a-zA-Z]$') !== null;
+}
+
 /** createUser
  * Create an auth user and a firebase document for that user.
  * @param email: The new user's email
  * @param password: The new user's plaintext password
  * @param username: The new user's username
  * @param displayName: The new user's display name
+ * @returns: The new Tower User
  * @throws if email already exists
  * @throws if password is invalid
  */
@@ -33,24 +56,30 @@ export async function createUser(
   username: string,
   displayName: string
 ) {
+  if (!validUsername(username)) return Promise.reject('Invalid Username!');
+  if (!validDisplayname(displayName))
+    return Promise.reject('Invalid Display Name!');
+  if (await getUserByUsername(username))
+    return Promise.reject('Username taken');
   return createUserWithEmailAndPassword(auth, email, password).then(
     (cred: UserCredential) => {
       return runTransaction(db, async (transaction: Transaction) => {
         const newDocRef = doc(db, 'users', cred.user.uid);
         const cacheDocRef = doc(db, 'caches', 'users');
 
-        const map = (await transaction.get(cacheDocRef)).data()!
-          .usernameToUserID;
-        map[username] = cred.user.uid;
+        const map = (await transaction.get(cacheDocRef)).data()!.usernameToUser;
+        map[username] = newDocRef;
 
-        transaction.update(cacheDocRef, { usernameToUserID: map });
+        transaction.update(cacheDocRef, { usernameToUser: map });
         transaction.set(newDocRef, {
           username: username,
           email: email,
           displayName: displayName,
           bio: "I'm a new climber!",
           status: UserStatus.Unverified,
+          createdOn: serverTimestamp(),
         });
+        return new User(newDocRef);
       });
     }
   );
@@ -59,25 +88,12 @@ export async function createUser(
 /** getCurrentUser
  * Get the current auth user, and return the corresponding Tower User
  * @returns The corresponding Tower User object
- * @remarks If the User is marked as Unverified but meet the qualifications,
- * this function will update their status accordingly.
  * @throws If the user is not signed in
  */
 export async function getCurrentUser() {
   if (auth.currentUser === null)
     return Promise.reject('Failed to authenticate');
-  const res = new User(doc(db, 'users', auth.currentUser.uid));
-  if (
-    auth.currentUser.emailVerified &&
-    (await res.getStatus()) === UserStatus.Unverified &&
-    isKnightsEmail(await res.getEmail())
-  ) {
-    return runTransaction(db, async (transaction) => {
-      transaction.update(res.docRef!, {
-        status: UserStatus.Verified,
-      });
-    }).then(() => new User(doc(db, 'users', auth.currentUser!.uid)));
-  } else return res;
+  return new User(doc(db, 'users', auth.currentUser.uid));
 }
 
 /** getUserById
@@ -99,8 +115,8 @@ export function getUserById(id: string) {
 export async function getUserByUsername(username: string) {
   return getDoc(doc(db, 'caches', 'users'))
     .then((snap) => {
-      const map = snap.get('usernameToUserID');
-      if (map[username]) return getUserById(map[username]);
+      const map = snap.get('usernameToUser');
+      if (map[username]) return new User(map[username]);
       else return undefined;
     })
     .catch(() => undefined);
@@ -133,14 +149,24 @@ export async function sendAuthEmail() {
 // Because the authstate doesnt change when an email verification happens, we have to poll for it :/
 const timer = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // eslint-disable-next-line @typescript-eslint/ban-types
-export const startWaitForVerificationPoll = (notifyVerified: Function) => {
+export const startWaitForVerificationPoll = (
+  notifyVerified: (user: User) => any
+) => {
   if (auth.currentUser === null) return null;
+  if (auth.currentUser.email === null) return null;
+
   if (!auth.currentUser!.emailVerified) {
     timer(2500).then(() => {
-      auth.currentUser!.reload();
-      startWaitForVerificationPoll(notifyVerified);
+      auth
+        .currentUser!.reload()
+        .then(() => startWaitForVerificationPoll(notifyVerified));
     });
   } else {
-    notifyVerified();
+    runTransaction(db, async (transaction) => {
+      const res = new User(doc(db, 'users', auth.currentUser!.uid));
+      await res.updateWithTransaction(transaction);
+      res.verifyEmailWithinTransaction(auth.currentUser!.email!, transaction);
+      return res;
+    }).then(notifyVerified);
   }
 };

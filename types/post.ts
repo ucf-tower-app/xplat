@@ -1,21 +1,28 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject, LazyStaticImage } from './common';
 import {
-  DocumentReference,
   DocumentData,
-  arrayRemove,
-  refEqual,
-  deleteDoc,
-  doc,
-  collection,
-  serverTimestamp,
+  DocumentReference,
   Transaction,
+  arrayRemove,
+  arrayUnion,
+  collection,
+  doc,
+  increment,
+  refEqual,
+  runTransaction,
+  serverTimestamp,
+  updateDoc,
 } from 'firebase/firestore';
-import { Comment, Forum, User } from './types';
+import { deleteObject, getMetadata } from 'firebase/storage';
 import { db } from '../Firebase';
-import { arrayUnion, runTransaction } from 'firebase/firestore';
-import { deleteObject } from 'firebase/storage';
-import { text } from 'stream/consumers';
+import {
+  Comment,
+  Forum,
+  LazyObject,
+  LazyStaticImage,
+  LazyStaticVideo,
+  User,
+} from './types';
 
 export class Post extends LazyObject {
   // Expected and required when getting data
@@ -31,10 +38,13 @@ export class Post extends LazyObject {
 
   // Might remain undefined even if has data
   protected forum?: Forum;
+  protected videoContent?: LazyStaticVideo;
 
-  protected initWithDocumentData(data: DocumentData) {
+  public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
-    this.timestamp = data.timestamp;
+    this.timestamp = new Date(
+      data.timestamp.seconds * 1000 + data.timestamp.nanoseconds / 1000000
+    );
     this.textContent = data.textContent;
 
     this.likes = (data.likes ?? []).map(
@@ -49,7 +59,11 @@ export class Post extends LazyObject {
     );
 
     if (data.forum) this.forum = new Forum(data.forum);
-
+    if (data.videoContent)
+      this.videoContent = new LazyStaticVideo(
+        data.videoContent + '_thumbnail',
+        data.videoContent + '_video'
+      );
     this.hasData = true;
   }
 
@@ -143,30 +157,101 @@ export class Post extends LazyObject {
     return Promise.all(this.imageContent!.map((img) => img.getImageUrl()));
   }
 
+  public async hasVideoContent() {
+    if (!this.hasData) await this.getData();
+    return this.videoContent !== undefined;
+  }
+
+  public async getStaticContentStorageRefs() {
+    if (!this.hasData) await this.getData();
+    const res = this.imageContent!.map((img) => img.getStorageRef());
+    if (this.videoContent) {
+      res.push(this.videoContent.getThumbnailStorageRef());
+      res.push(this.videoContent.getVideoStorageRef());
+    }
+    return res;
+  }
+
+  public async getVideoThumbnailUrl() {
+    if (!this.hasData) await this.getData();
+    return this.videoContent!.getThumbnailUrl();
+  }
+
+  public async getVideoUrl() {
+    if (!this.hasData) await this.getData();
+    return this.videoContent!.getVideoUrl();
+  }
+
   public async isSaved() {
     if (!this.hasData) await this.getData();
     return this._isSaved!;
   }
 
+  public async getStaticContentSizeInBytes() {
+    if (!this.hasData) await this.getData();
+    const tasks = this.imageContent!.map((img) =>
+      getMetadata(img.getStorageRef())
+    );
+    if (this.videoContent) {
+      tasks.push(getMetadata(this.videoContent.getThumbnailStorageRef()));
+      tasks.push(getMetadata(this.videoContent.getVideoStorageRef()));
+    }
+    const metas = await Promise.all(tasks);
+    return metas.reduce((sum, meta) => sum + meta.size, 0);
+  }
+
+  public async editTextContent(textContent: string) {
+    return updateDoc(this.docRef!, { textContent: textContent });
+  }
+
   public async deleteStaticContent() {
     if (!this.hasData) await this.getData();
-    return Promise.all(
-      this.imageContent!.map((img) => deleteObject(img.getStorageRef()))
-    );
+    const deleteImages =
+      this.imageContent &&
+      Promise.all(
+        this.imageContent.map((img) => deleteObject(img.getStorageRef()))
+      );
+    const deleteThumbnail =
+      this.videoContent &&
+      deleteObject(this.videoContent.getThumbnailStorageRef());
+    const deleteVideo =
+      this.videoContent && deleteObject(this.videoContent.getVideoStorageRef());
+    await deleteImages;
+    await deleteThumbnail;
+    await deleteVideo;
   }
 
   public async delete() {
     if (!this.docRef) return;
+    const size = await this.getStaticContentSizeInBytes();
     await this.deleteStaticContent();
     return runTransaction(db, async (transaction: Transaction) => {
-      this.updateWithTransaction(transaction);
+      // Reads
+      await this.updateWithTransaction(transaction);
+      await Promise.all(
+        this.comments!.map(async (cmt) =>
+          cmt.updateWithTransaction(transaction)
+        )
+      );
 
+      // Writes
       if (this.forum)
         transaction.update(this.forum!.docRef!, {
           posts: arrayRemove(this.docRef!),
         });
+      transaction.update(this.author!.docRef!, {
+        posts: arrayRemove(this.docRef),
+        totalPostSizeInBytes: increment(-size),
+      });
+      this.comments!.forEach((cmt) => {
+        cmt.getAuthor().then((author) =>
+          transaction.update(author.docRef!, {
+            comments: arrayRemove(cmt.docRef!),
+          })
+        );
+        transaction.delete(cmt.docRef!);
+      });
       transaction.delete(this.docRef!);
-      this.comments!.forEach((cmt) => transaction.delete(cmt.docRef!));
     });
   }
 }
@@ -178,15 +263,17 @@ export class PostMock extends Post {
     textContent: string,
     likes: User[] = [],
     comments: Comment[] = [],
-    imageContent: LazyStaticImage[] = []
+    imageContent: LazyStaticImage[] = [],
+    videoContent?: LazyStaticVideo
   ) {
     super();
     this.author = author;
     this.timestamp = timestamp;
     this.textContent = textContent;
-    this.imageContent = imageContent;
     this.likes = likes;
     this.comments = comments;
+    this.imageContent = imageContent;
+    this.videoContent = videoContent;
 
     this.hasData = true;
   }

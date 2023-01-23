@@ -1,14 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { LazyObject, removeRef } from './common';
-import {
-  DocumentReference,
-  DocumentData,
-  runTransaction,
-  arrayRemove,
-} from 'firebase/firestore';
-import { Post, Route, User } from './types';
-import { createPost } from '../api';
-import { db } from '../Firebase';
+import { DocumentData, DocumentReference } from 'firebase/firestore';
+import { LazyObject, Post, Route } from './types';
 
 export class Forum extends LazyObject {
   // Filled with defaults if not present when getting data
@@ -18,7 +10,7 @@ export class Forum extends LazyObject {
   // Might remain undefined even if has data
   protected route?: Route;
 
-  protected initWithDocumentData(data: DocumentData) {
+  public initWithDocumentData(data: DocumentData) {
     this.posts = (data.posts ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Post(ref)
     );
@@ -29,32 +21,34 @@ export class Forum extends LazyObject {
     this.hasData = true;
   }
 
+  // ======================== Trivial Getters Below ========================
+
+  /** getPosts
+   */
   public async getPosts() {
     if (!this.hasData) await this.getData();
     return this.posts!;
   }
 
+  /** hasRoute
+   */
   public async hasRoute() {
     if (!this.hasData) await this.getData();
     return this.route !== undefined;
   }
 
+  /** getRoute
+   */
   public async getRoute() {
     if (!this.hasData) await this.getData();
     return this.route;
   }
 
+  /** isArchived
+   */
   public async isArchived() {
     if (!this.hasData) await this.getData();
     return this._isArchived;
-  }
-
-  public async createPost(
-    author: User,
-    textContent: string,
-    imageContent: Blob[] | undefined = undefined
-  ) {
-    return createPost(author, textContent, this, imageContent);
   }
 }
 

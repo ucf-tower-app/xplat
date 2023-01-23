@@ -1,14 +1,11 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  DocumentReference,
   DocumentData,
+  DocumentReference,
   getDoc,
   refEqual,
   Transaction,
 } from 'firebase/firestore';
-import { ref } from 'firebase/storage';
-import { getUrl } from '../api';
-import { storage } from '../Firebase';
 
 export enum UserStatus {
   Unverified = 0,
@@ -19,20 +16,41 @@ export enum UserStatus {
   Developer = 5,
 }
 
-export enum RouteStatus {
-  Draft = 0,
-  Active = 1,
-  Archived = 2,
+export class ArrayCursor<T> {
+  public data: T[];
+  private idx: number;
+  private stride: number;
+
+  constructor(data: T[], stride = 10) {
+    this.data = data;
+    this.idx = 0;
+    this.stride = stride;
+  }
+
+  public hasNext() {
+    return this.idx < this.data.length;
+  }
+
+  public getNext(stride: number | undefined) {
+    if (!this.hasNext()) return [];
+    const res = this.data.slice(this.idx, this.idx + (stride ?? this.stride));
+    this.idx += stride ?? this.stride;
+    return res;
+  }
+
+  public forEachNext<Q>(stride: number | undefined, callback: (arg: T) => Q) {
+    return this.getNext(stride).map(callback);
+  }
 }
 
 export abstract class LazyObject {
   public docRef: DocumentReference<DocumentData> | undefined;
   protected hasData: boolean;
 
-  protected abstract initWithDocumentData(data: DocumentData): void;
+  public abstract initWithDocumentData(data: DocumentData): void;
 
-  public async getData(): Promise<void> {
-    if (this.hasData) return Promise.resolve();
+  public async getData(forceUpdate = false): Promise<void> {
+    if (this.hasData && !forceUpdate) return;
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');
 
@@ -65,26 +83,5 @@ export function removeRef(array: LazyObject[], targ: LazyObject) {
       (e) => e.docRef && refEqual(e.docRef, targ.docRef!)
     );
     array.splice(idx);
-  }
-}
-
-export class LazyStaticImage {
-  protected imagePath: string;
-  protected imageUrl?: string;
-
-  constructor(imagePath: string, imageUrl?: string) {
-    this.imagePath = imagePath;
-    this.imageUrl = imageUrl;
-  }
-
-  public async getImageUrl() {
-    if (this.imageUrl === undefined) {
-      this.imageUrl = await getUrl(this.imagePath);
-    }
-    return this.imageUrl;
-  }
-
-  public getStorageRef() {
-    return ref(storage, this.imagePath);
   }
 }
