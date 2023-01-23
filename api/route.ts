@@ -136,11 +136,31 @@ export function getAllBoulderClassifiers() {
   );
 }
 
+/** convertBoulderStringToClassifier
+ * Turns a boulder grade string into its classifier
+ * @param boulderString: The boulder string to convert
+ */
+export function convertBoulderStringToClassifier(boulderString: string) {
+  const rawgrade = boulderString.includes('-1')
+    ? -1
+    : parseInt(boulderString[boulderString.length - 1]);
+  return new RouteClassifier(rawgrade, RouteType.Boulder);
+}
+
 /** getAllTraverseRouteClassifiers
  * Get list of all traverse classifiers
  */
 export function getAllTraverseRouteClassifiers() {
   return [1, 2, 3, 4].map((x) => new RouteClassifier(x, RouteType.Traverse));
+}
+
+/** convertTraverseStringToClassifier
+ * Turns a traverse grade string into its classifier
+ * @param traverseString: The traverse string to convert
+ */
+export function convertTraverseStringToClassifier(traverseString: string) {
+  const rawgrade = traverseString.charCodeAt(0) - 'A'.charCodeAt(0);
+  return new RouteClassifier(rawgrade, RouteType.Traverse);
 }
 
 /** getAllTopropeRouteClassifiers
@@ -153,6 +173,17 @@ export function getAllTopropeRouteClassifiers() {
   ].map((x) => new RouteClassifier(x, RouteType.Toprope));
 }
 
+/** convertTopropeStringToClassifier
+ * Turns a toprope grade string into its classifier
+ * @param topropeString: The toprope string to convert
+ */
+export function convertTopropeStringToClassifier(topropeString: string) {
+  let rawgrade = parseInt(topropeString.split('.')[1]) * 10;
+  if (topropeString.endsWith('-')) rawgrade--;
+  else if (topropeString.endsWith('+')) rawgrade++;
+  return new RouteClassifier(rawgrade, RouteType.Toprope);
+}
+
 /** getAllLeadclimbRouteClassifiers
  * Get list of all lead climb classifiers
  */
@@ -163,11 +194,33 @@ export function getAllLeadclimbRouteClassifiers() {
   ].map((x) => new RouteClassifier(x, RouteType.Leadclimb));
 }
 
+/** convertLeadclimbStringToClassifier
+ * Turns a leadclimb grade string into its classifier
+ * @param leadclimbString: The leadclimb string to convert
+ */
+export function convertLeadclimbStringToClassifier(leadclimbString: string) {
+  let rawgrade = parseInt(leadclimbString.split('.')[1]) * 10;
+  if (leadclimbString.endsWith('-')) rawgrade--;
+  else if (leadclimbString.endsWith('+')) rawgrade++;
+  return new RouteClassifier(rawgrade, RouteType.Leadclimb);
+}
+
 /** getAllCompetitionRouteClassifiers
  * Get list of all comp route classifiers
  */
 export function getAllCompetitionRouteClassifiers() {
   return [1, 2, 3, 4].map((x) => new RouteClassifier(x, RouteType.Competition));
+}
+
+/** convertCompetitionStringToClassifier
+ * Turns a competition grade string into its classifier
+ * @param competitionString: The competition string to convert
+ */
+export function convertCompetitionStringToClassifier(
+  competitionString: string
+) {
+  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0);
+  return new RouteClassifier(rawgrade, RouteType.Competition);
 }
 
 /** getAllRouteClassifiers
