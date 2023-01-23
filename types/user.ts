@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { containsRef, LazyObject, LazyStaticImage, removeRef, UserStatus } from './common';
 import {
   EmailAuthProvider,
   deleteUser,
@@ -26,6 +25,7 @@ import {
   Send,
   UserStatus,
   containsRef,
+  removeRef,
 } from './types';
 
 export class User extends LazyObject {
