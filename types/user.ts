@@ -77,6 +77,11 @@ export class User extends LazyObject {
     });
   }
 
+    /** unfollowUser
+   * Unfollow a user.
+   * @param other: The User to unfollow
+   * @remarks both this and other's following and follower lists will be updated
+   */
   public async unfollowUser(other: User) {
     // If this user has data and their following array doesn't contain the other user, return
     if (this.hasData && !containsRef(this.following!, other)) return;
