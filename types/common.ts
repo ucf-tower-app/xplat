@@ -45,7 +45,7 @@ export class ArrayCursor<T> {
 
 export abstract class LazyObject {
   public docRef: DocumentReference<DocumentData> | undefined;
-  protected hasData: boolean;
+  public hasData: boolean;
 
   public abstract initWithDocumentData(data: DocumentData): void;
 

@@ -3,9 +3,9 @@ import { DocumentData } from 'firebase/firestore';
 import { LazyObject, Route } from './types';
 
 export class Send extends LazyObject {
-  protected attempts: number | undefined;
-  protected timestamp: Date | undefined;
-  protected route: Route | undefined;
+  public attempts: number | undefined;
+  public timestamp: Date | undefined;
+  public route: Route | undefined;
 
   public initWithDocumentData(data: DocumentData): void {
     this.attempts = data.attempts;

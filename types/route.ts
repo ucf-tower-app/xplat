@@ -63,21 +63,21 @@ function gradeToDisplayString(grade: number, type: RouteType) {
 
 export class Route extends LazyObject {
   // Expected and required when getting data
-  protected name?: string;
-  protected classifier?: RouteClassifier;
-  protected forum?: Forum;
+  public name?: string;
+  public classifier?: RouteClassifier;
+  public forum?: Forum;
 
   // Filled with defaults if not present when getting data
-  protected likes?: User[];
-  protected tags?: Tag[];
-  protected status?: RouteStatus;
-  protected description?: string;
+  public likes?: User[];
+  public tags?: Tag[];
+  public status?: RouteStatus;
+  public description?: string;
 
   // Might remain undefined even if has data
-  protected setter?: User;
-  protected thumbnail?: LazyStaticImage;
-  protected rope?: number;
-  protected timestamp?: Date;
+  public setter?: User;
+  public thumbnail?: LazyStaticImage;
+  public rope?: number;
+  public timestamp?: Date;
 
   public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
@@ -297,16 +297,15 @@ export class RouteMock extends Route {
     description: string,
     setter?: User,
     thumbnail?: LazyStaticImage,
-    rope?: number,
+    rope?: number
   ) {
     super();
     this.name = name;
     this.classifier = classifier;
-    this.forum = forum,
-    this.likes = likes;
+    (this.forum = forum), (this.likes = likes);
     this.tags = tags;
     this.status = status;
-    this.description = description;;
+    this.description = description;
     this.setter = setter;
     this.thumbnail = thumbnail;
     this.rope = rope;

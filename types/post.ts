@@ -26,19 +26,19 @@ import {
 
 export class Post extends LazyObject {
   // Expected and required when getting data
-  protected author?: User;
-  protected timestamp?: Date;
-  protected textContent?: string;
+  public author?: User;
+  public timestamp?: Date;
+  public textContent?: string;
 
   // Filled with defaults if not present when getting data
-  protected likes?: User[];
-  protected comments?: Comment[];
-  protected _isSaved?: boolean;
-  protected imageContent?: LazyStaticImage[];
+  public likes?: User[];
+  public comments?: Comment[];
+  public _isSaved?: boolean;
+  public imageContent?: LazyStaticImage[];
 
   // Might remain undefined even if has data
-  protected forum?: Forum;
-  protected videoContent?: LazyStaticVideo;
+  public forum?: Forum;
+  public videoContent?: LazyStaticVideo;
 
   public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);

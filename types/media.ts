@@ -3,8 +3,8 @@ import { storage } from '../Firebase';
 import { getUrl } from '../api';
 
 export class LazyStaticImage {
-  protected imagePath: string;
-  protected imageUrl?: string;
+  public imagePath: string;
+  public imageUrl?: string;
 
   constructor(imagePath: string, imageUrl?: string) {
     this.imagePath = imagePath;
@@ -28,10 +28,10 @@ export class LazyStaticImage {
 }
 
 export class LazyStaticVideo {
-  protected thumbnailPath: string;
-  protected thumbnailUrl?: string;
-  protected videoPath: string;
-  protected videoUrl?: string;
+  public thumbnailPath: string;
+  public thumbnailUrl?: string;
+  public videoPath: string;
+  public videoUrl?: string;
 
   constructor(
     thumbnailPath: string,

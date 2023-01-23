@@ -4,11 +4,11 @@ import { LazyObject, Post, Route } from './types';
 
 export class Forum extends LazyObject {
   // Filled with defaults if not present when getting data
-  protected posts?: Post[];
-  protected _isArchived?: boolean;
+  public posts?: Post[];
+  public _isArchived?: boolean;
 
   // Might remain undefined even if has data
-  protected route?: Route;
+  public route?: Route;
 
   public initWithDocumentData(data: DocumentData) {
     this.posts = (data.posts ?? []).map(
