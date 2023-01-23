@@ -4,10 +4,12 @@ import {
   DocumentReference,
   arrayRemove,
   arrayUnion,
+  deleteDoc,
   refEqual,
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
+import { deleteObject } from 'firebase/storage';
 import { db } from '../Firebase';
 import { Forum, LazyObject, LazyStaticImage, Tag, User } from './types';
 
@@ -157,6 +159,20 @@ export class Route extends LazyObject {
         this.status = RouteStatus.Archived;
       }
     });
+  }
+
+  /** delete
+   * Delete a draft route
+   * @throws if the route is not a draft
+   */
+  public async delete() {
+    await this.getData(true);
+    if (this.status! !== RouteStatus.Draft)
+      return Promise.reject('Can only delete a draft route');
+    const tasks = [deleteDoc(this.docRef!), deleteDoc(this.forum!.docRef!)];
+    if (this.thumbnail)
+      tasks.push(deleteObject(this.thumbnail.getStorageRef()));
+    return Promise.all(tasks);
   }
 
   // ======================== Trivial Getters Below ========================
