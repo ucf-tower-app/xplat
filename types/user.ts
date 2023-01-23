@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { containsRef, LazyObject, LazyStaticImage, UserStatus } from './common';
+import { containsRef, LazyObject, LazyStaticImage, removeRef, UserStatus } from './common';
 import {
   DocumentReference,
   DocumentData,
@@ -78,11 +78,10 @@ export class User extends LazyObject {
   }
 
   public async unfollowUser(other: User) {
-    // If we already have data, might as well run the free short-circuit check.
-    // We're going to run it anyways during the transaction, but if we can avoid it,
-    // might as well do it now.
+    // If this user has data and their following array doesn't contain the other user, return
     if (this.hasData && !containsRef(this.following!, other)) return;
 
+    // Else run the transaction, which will get the data fresh and then run the same check and return if it fails
     return runTransaction(db, async (transaction: Transaction) => {
       const thisSnap = await transaction.get(this.docRef!);
       const otherSnap = await transaction.get(other.docRef!);
@@ -92,9 +91,12 @@ export class User extends LazyObject {
 
       if (!containsRef(this.following!, other)) return;
 
-      this.following = this.following!.filter((user) => user !== other);
-      other.followers = other.followers!.filter((user) => user !== this);
+      // If we get here, we know that this user is following the other user
+      // Update client-side
+      removeRef(this.following!, other);
+      removeRef(other.followers!, this);
 
+      // Then update the db
       transaction.update(this.docRef!, {
         following: arrayRemove(other.docRef),
       });
