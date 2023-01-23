@@ -39,6 +39,7 @@ export interface CreateRouteArgs {
   rope?: number;
   thumbnail?: Blob;
   color?: string;
+  setterRawName?: string;
 }
 
 /** createRoute
@@ -51,6 +52,7 @@ export interface CreateRouteArgs {
  * @param rope: Optional, which rope the route is on / closest to
  * @param thumbnail: Optional, the route's thumbnail
  * @param color: Optional, the hold colors
+ * @param setterRawName: Optional, if no setter User exists, then just the name of the setter
  * @returns The newly created Route
  */
 export async function createRoute({
@@ -62,6 +64,7 @@ export async function createRoute({
   rope = undefined,
   thumbnail = undefined,
   color = undefined,
+  setterRawName = undefined,
 }: CreateRouteArgs) {
   const newRouteDocRef = doc(collection(db, 'routes'));
   const newForumDocRef = doc(collection(db, 'forums'));
@@ -91,6 +94,7 @@ export async function createRoute({
       ...(color && { color: color }),
       ...(description && { description: description }),
       ...(thumbnail && { thumbnail: 'routeThumbnails/' + newRouteDocRef.id }),
+      ...(setterRawName && { setterRawName: setterRawName }),
       forum: newForumDocRef,
       status: RouteStatus.Draft,
     });
