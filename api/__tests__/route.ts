@@ -4,7 +4,7 @@ import {
   convertLeadclimbStringToClassifier,
   convertTopropeStringToClassifier,
   convertTraverseStringToClassifier,
-} from '../api';
+} from '../route';
 
 test('boulder strings are properly converted to their RouteClassifier', () => {
   expect(convertBoulderStringToClassifier('VB').rawgrade).toBe(-1);
