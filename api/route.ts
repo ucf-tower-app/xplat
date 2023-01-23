@@ -38,6 +38,7 @@ export interface CreateRouteArgs {
   setter?: User;
   rope?: number;
   thumbnail?: Blob;
+  color?: string;
   setterRawName?: string;
 }
 
@@ -50,6 +51,7 @@ export interface CreateRouteArgs {
  * @param setter: Optional, the Tower User of the setter
  * @param rope: Optional, which rope the route is on / closest to
  * @param thumbnail: Optional, the route's thumbnail
+ * @param color: Optional, the hold colors
  * @param setterRawName: Optional, if no setter User exists, then just the name of the setter
  * @returns The newly created Route
  */
@@ -61,6 +63,7 @@ export async function createRoute({
   setter = undefined,
   rope = undefined,
   thumbnail = undefined,
+  color = undefined,
   setterRawName = undefined,
 }: CreateRouteArgs) {
   const newRouteDocRef = doc(collection(db, 'routes'));
@@ -88,6 +91,7 @@ export async function createRoute({
       ...(setter && { setter: setter.docRef! }),
       ...(rope && { rope: rope }),
       ...(tags && { tags: tags }),
+      ...(color && { color: color }),
       ...(description && { description: description }),
       ...(thumbnail && { thumbnail: 'routeThumbnails/' + newRouteDocRef.id }),
       ...(setterRawName && { setterRawName: setterRawName }),

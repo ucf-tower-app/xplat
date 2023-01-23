@@ -4,10 +4,12 @@ import {
   DocumentReference,
   arrayRemove,
   arrayUnion,
+  deleteDoc,
   refEqual,
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
+import { deleteObject } from 'firebase/storage';
 import { db } from '../Firebase';
 import { Forum, LazyObject, LazyStaticImage, Tag, User } from './types';
 
@@ -78,6 +80,7 @@ export class Route extends LazyObject {
   public thumbnail?: LazyStaticImage;
   public rope?: number;
   public timestamp?: Date;
+  public color?: string;
   public setterRawName?: string;
 
   public initWithDocumentData(data: DocumentData): void {
@@ -100,6 +103,7 @@ export class Route extends LazyObject {
     if (data.setter) this.setter = new User(data.setter);
     if (data.thumbnail) this.thumbnail = new LazyStaticImage(data.thumbnail);
     if (data.rope) this.rope = data.rope;
+    if (data.color) this.color = data.color;
     if (data.setterRawName) this.setterRawName = data.setterRawName;
     if (data.timestamp)
       this.timestamp = new Date(
@@ -159,6 +163,20 @@ export class Route extends LazyObject {
         this.status = RouteStatus.Archived;
       }
     });
+  }
+
+  /** delete
+   * Delete a draft route
+   * @throws if the route is not a draft
+   */
+  public async delete() {
+    await this.getData(true);
+    if (this.status! !== RouteStatus.Draft)
+      return Promise.reject('Can only delete a draft route');
+    const tasks = [deleteDoc(this.docRef!), deleteDoc(this.forum!.docRef!)];
+    if (this.thumbnail)
+      tasks.push(deleteObject(this.thumbnail.getStorageRef()));
+    return Promise.all(tasks);
   }
 
   // ======================== Trivial Getters Below ========================
@@ -252,6 +270,20 @@ export class Route extends LazyObject {
   public async getSetter() {
     if (!this.hasData) await this.getData();
     return this.setter!;
+  }
+
+  /** hasColor
+   */
+  public async hasColor() {
+    if (!this.hasData) await this.getData();
+    return this.color !== undefined;
+  }
+
+  /** getColor
+   */
+  public async getColor() {
+    if (!this.hasData) await this.getData();
+    return this.color!;
   }
 
   /** getForum
