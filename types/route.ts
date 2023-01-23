@@ -80,6 +80,7 @@ export class Route extends LazyObject {
   public thumbnail?: LazyStaticImage;
   public rope?: number;
   public timestamp?: Date;
+  public color?: string;
 
   public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
@@ -101,6 +102,7 @@ export class Route extends LazyObject {
     if (data.setter) this.setter = new User(data.setter);
     if (data.thumbnail) this.thumbnail = new LazyStaticImage(data.thumbnail);
     if (data.rope) this.rope = data.rope;
+    if (data.color) this.color = data.color;
     if (data.timestamp)
       this.timestamp = new Date(
         data.timestamp.seconds * 1000 + data.timestamp.nanoseconds / 1000000
@@ -252,6 +254,20 @@ export class Route extends LazyObject {
   public async getSetter() {
     if (!this.hasData) await this.getData();
     return this.setter!;
+  }
+
+  /** hasColor
+   */
+  public async hasColor() {
+    if (!this.hasData) await this.getData();
+    return this.color !== undefined;
+  }
+
+  /** getColor
+   */
+  public async getColor() {
+    if (!this.hasData) await this.getData();
+    return this.color!;
   }
 
   /** getForum

@@ -38,6 +38,7 @@ export interface CreateRouteArgs {
   setter?: User;
   rope?: number;
   thumbnail?: Blob;
+  color?: string;
 }
 
 /** createRoute
@@ -49,6 +50,7 @@ export interface CreateRouteArgs {
  * @param setter: Optional, the Tower User of the setter
  * @param rope: Optional, which rope the route is on / closest to
  * @param thumbnail: Optional, the route's thumbnail
+ * @param color: Optional, the hold colors
  * @returns The newly created Route
  */
 export async function createRoute({
@@ -59,6 +61,7 @@ export async function createRoute({
   setter = undefined,
   rope = undefined,
   thumbnail = undefined,
+  color = undefined,
 }: CreateRouteArgs) {
   const newRouteDocRef = doc(collection(db, 'routes'));
   const newForumDocRef = doc(collection(db, 'forums'));
