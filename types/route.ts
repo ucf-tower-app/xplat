@@ -290,18 +290,26 @@ export class RouteMock extends Route {
   constructor(
     name: string,
     classifier: RouteClassifier,
-    setter: User,
     forum: Forum,
     likes: User[],
-    tags: Tag[]
+    tags: Tag[],
+    status: RouteStatus,
+    description: string,
+    setter?: User,
+    thumbnail?: LazyStaticImage,
+    rope?: number,
   ) {
     super();
     this.name = name;
     this.classifier = classifier;
-    this.setter = setter;
-    this.forum = forum;
+    this.forum = forum,
     this.likes = likes;
     this.tags = tags;
+    this.status = status;
+    this.description = description;;
+    this.setter = setter;
+    this.thumbnail = thumbnail;
+    this.rope = rope;
 
     this.hasData = true;
   }
