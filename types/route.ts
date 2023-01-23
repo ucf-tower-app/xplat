@@ -9,8 +9,8 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
-import { deleteObject, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from '../Firebase';
+import { deleteObject } from 'firebase/storage';
+import { db } from '../Firebase';
 import { Forum, LazyObject, LazyStaticImage, Tag, User } from './types';
 
 export enum RouteType {
@@ -61,18 +61,6 @@ function gradeToDisplayString(grade: number, type: RouteType) {
       (grade % 10 == 9 ? '-' : '')
     );
   }
-}
-
-export interface EditRouteArgs {
-  name?: string;
-  classifier?: RouteClassifier;
-  description?: string;
-  tags?: Tag[];
-  setter?: User;
-  rope?: number;
-  thumbnail?: Blob;
-  color?: string;
-  setterRawName?: string;
 }
 
 export class Route extends LazyObject {
@@ -189,70 +177,6 @@ export class Route extends LazyObject {
     if (this.thumbnail)
       tasks.push(deleteObject(this.thumbnail.getStorageRef()));
     return Promise.all(tasks);
-  }
-
-  /** edit
-   * Update a route with any of the non-undefined params.
-   * All params are optional since not every param *has* to change.
-   * @param name: Route's name
-   * @param classifier: Route's classifier
-   * @param description: Optional, the route's description
-   * @param tags: Optional, a list of Tag, the route's tags
-   * @param setter: Optional, the Tower User of the setter
-   * @param rope: Optional, which rope the route is on / closest to
-   * @param thumbnail: Optional, the route's thumbnail
-   * @param color: Optional, the hold colors
-   * @param setterRawName: Optional, if no setter User exists, then just the name of the setter
-   * @remarks Updates this route's fields
-   */
-  public async edit({
-    name = undefined,
-    classifier = undefined,
-    description = undefined,
-    tags = undefined,
-    setter = undefined,
-    rope = undefined,
-    thumbnail = undefined,
-    color = undefined,
-    setterRawName = undefined,
-  }: EditRouteArgs) {
-    await this.getData(true);
-    if (thumbnail) {
-      if (this.thumbnail) await deleteObject(this.thumbnail.getStorageRef());
-      await uploadBytes(
-        ref(storage, 'routeThumbnails/' + this.docRef!.id),
-        thumbnail
-      );
-    }
-    const res = runTransaction(db, async (transaction) => {
-      await this.updateWithTransaction(transaction);
-      transaction.update(this.docRef!, {
-        ...(name && { name: name }),
-        ...(classifier && { classifier: classifier }),
-        ...(description && { description: description }),
-        ...(tags && { tags: tags }),
-        ...(setter && { setter: setter }),
-        ...(rope && { rope: rope }),
-        ...(color && { color: color }),
-        ...(setterRawName && { setterRawName: setterRawName }),
-        ...(thumbnail && { thumbnail: 'routeThumbnails/' + this.docRef!.id }),
-      });
-    });
-
-    if (name) this.name = name;
-    if (classifier) this.classifier = classifier;
-    if (description) this.description = description;
-    if (tags) this.tags = tags;
-    if (setter) this.setter = setter;
-    if (rope) this.rope = rope;
-    if (color) this.color = color;
-    if (setterRawName) this.setterRawName = setterRawName;
-    if (thumbnail)
-      this.thumbnail = new LazyStaticImage(
-        'routeThumbnails/' + this.docRef!.id
-      );
-
-    return res;
   }
 
   // ======================== Trivial Getters Below ========================
