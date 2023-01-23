@@ -88,6 +88,7 @@ export async function createRoute({
       ...(setter && { setter: setter.docRef! }),
       ...(rope && { rope: rope }),
       ...(tags && { tags: tags }),
+      ...(color && { color: color }),
       ...(description && { description: description }),
       ...(thumbnail && { thumbnail: 'routeThumbnails/' + newRouteDocRef.id }),
       forum: newForumDocRef,
