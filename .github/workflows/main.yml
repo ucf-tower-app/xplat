@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup dependencies
-        run: echo "${{ secrets.FIREBASE_CONFIG }}" > .firebase_config.ts
+        run: echo '${{ secrets.FIREBASE_CONFIG }}' > .firebase_config.ts
       - name: Install modules
         run: npm i
       - name: Run tests
