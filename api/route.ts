@@ -135,6 +135,20 @@ export function getAllRoutesCursor() {
   );
 }
 
+/** getArchivedRoutesCursor
+ * Get a cursor for all archived routes from most recent
+ * @returns A list of Tower Routes
+ */
+export function getArchivedRoutesCursor() {
+  return new QueryCursor<Route>(
+    Route,
+    5,
+    collection(db, 'routes'),
+    where('status', 'in', [RouteStatus.Archived]),
+    orderBy('timestamp', 'desc')
+  );
+}
+
 /** getAllBoulderClassifiers
  * Get list of all boulder classifiers
  */
