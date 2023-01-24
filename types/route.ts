@@ -41,10 +41,14 @@ export class RouteClassifier {
   public type: RouteType;
   public rawgrade: number;
   public displayString: string;
+  public points: number;
   constructor(rawgrade: number, type: RouteType) {
     this.type = type;
     this.rawgrade = rawgrade;
     this.displayString = gradeToDisplayString(rawgrade, type);
+    if (type == RouteType.Toprope || type == RouteType.Leadclimb)
+      this.points = rawgrade;
+    else this.points = rawgrade * 10 + 60;
   }
 }
 
