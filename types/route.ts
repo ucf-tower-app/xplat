@@ -216,6 +216,8 @@ export class Route extends LazyObject {
 
   /** FUCKINSENDIT
    * FUCKIN SEND IT, MAN! HELL YEAH MY BROTHER
+   * @param sender: The sender
+   * @returns: Either the send if they've already sent it, or the new send
    */
   public async FUCKINSENDIT(sender: User) {
     const already = await this.getSendByUser(sender);
