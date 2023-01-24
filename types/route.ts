@@ -4,16 +4,22 @@ import {
   DocumentReference,
   arrayRemove,
   arrayUnion,
+  collection,
   deleteDoc,
   doc,
+  getDocs,
+  increment,
+  limit,
+  query,
   refEqual,
   runTransaction,
   serverTimestamp,
+  where,
 } from 'firebase/firestore';
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
 import { getRouteByName } from '../api';
-import { Forum, LazyObject, LazyStaticImage, Tag, User } from './types';
+import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from './types';
 
 export enum RouteType {
   Boulder = 'Boulder',
@@ -92,6 +98,7 @@ export class Route extends LazyObject {
   public tags?: Tag[];
   public status?: RouteStatus;
   public description?: string;
+  public sendCount?: number;
 
   // Might remain undefined even if has data
   public setter?: User;
@@ -116,6 +123,7 @@ export class Route extends LazyObject {
       (ref: DocumentReference<DocumentData>) => new Tag(ref)
     );
     this.status = (data.status ?? 0) as RouteStatus;
+    this.sendCount = data.sendCount ?? 0;
     this.description = data.description ?? '';
 
     if (data.setter) this.setter = new User(data.setter);
@@ -183,6 +191,51 @@ export class Route extends LazyObject {
         this.status = RouteStatus.Archived;
       }
     });
+  }
+
+  /** getSendByUser
+   * Check if a user has sent it. 'It' being this route, of course.
+   * @param user
+   * @returns: A Send if they've sent it, else undefined
+   */
+  public async getSendByUser(user: User) {
+    const q = await getDocs(
+      query(
+        collection(db, 'sends'),
+        where('user', '==', user.docRef!),
+        where('route', '==', this.docRef!),
+        limit(1)
+      )
+    );
+    if (q.size === 0) return undefined;
+    console.log(q.docs);
+    const res = new Send(q.docs[0].ref);
+    res.initWithDocumentData(q.docs[0].data());
+    return res;
+  }
+
+  /** FUCKINSENDIT
+   * FUCKIN SEND IT, MAN! HELL YEAH MY BROTHER
+   */
+  public async FUCKINSENDIT(sender: User) {
+    const already = await this.getSendByUser(sender);
+    if (already !== undefined) {
+      console.log('Already sent it');
+      return already;
+    }
+    const newSendDocRef = doc(collection(db, 'sends'));
+    await runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
+      this.sendCount = this.sendCount! + 1;
+      transaction
+        .update(this.docRef!, { sendCount: increment(1) })
+        .set(newSendDocRef, {
+          user: sender.docRef!,
+          route: this.docRef!,
+          timestamp: serverTimestamp(),
+        });
+    });
+    return new Send(newSendDocRef);
   }
 
   /** delete
@@ -307,6 +360,13 @@ export class Route extends LazyObject {
   public async getRope() {
     if (!this.hasData) await this.getData();
     return this.rope!;
+  }
+
+  /** getSendCount
+   */
+  public async getSendCount() {
+    if (!this.hasData) await this.getData();
+    return this.sendCount!;
   }
 
   /** hasSetterRawName
