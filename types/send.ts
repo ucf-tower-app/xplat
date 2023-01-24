@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { DocumentData } from 'firebase/firestore';
-import { LazyObject, Route } from './types';
+import { LazyObject, Route, User } from './types';
 
 export class Send extends LazyObject {
-  public attempts: number | undefined;
-  public timestamp: Date | undefined;
-  public route: Route | undefined;
+  public user?: User;
+  public route?: Route;
+  public timestamp?: Date;
 
   public initWithDocumentData(data: DocumentData): void {
-    this.attempts = data.attempts;
+    this.user = new User(data.user);
     this.timestamp = new Date(
       data.timestamp.seconds * 1000 + data.timestamp.nanoseconds / 1000000
     );
@@ -18,11 +18,11 @@ export class Send extends LazyObject {
   }
   // ======================== Trivial Getters Below ========================
 
-  /** getAttempts
+  /** getUser
    */
-  public async getAttempts() {
+  public async getUser() {
     if (!this.hasData) await this.getData();
-    return this.attempts!;
+    return this.user!;
   }
 
   /** getTimestamp
@@ -41,9 +41,9 @@ export class Send extends LazyObject {
 }
 
 export class SendMock extends Send {
-  constructor(attempts: number, timestamp: Date, route: Route) {
+  constructor(user: User, timestamp: Date, route: Route) {
     super();
-    this.attempts = attempts;
+    this.user = user;
     this.timestamp = timestamp;
     this.route = route;
 
