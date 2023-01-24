@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
+import { getRouteByName } from '../api';
 import { Forum, LazyObject, LazyStaticImage, Tag, User } from './types';
 
 export enum RouteType {
@@ -216,6 +217,8 @@ export class Route extends LazyObject {
     color = undefined,
     setterRawName = undefined,
   }: EditRouteArgs) {
+    if (name && (await getRouteByName(name)) !== undefined)
+      return Promise.reject('Route with this name already exists!');
     await this.getData(true);
     if (thumbnail) {
       if (this.thumbnail) await deleteObject(this.thumbnail.getStorageRef());
