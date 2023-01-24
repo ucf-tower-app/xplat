@@ -3,7 +3,10 @@ import {
   Transaction,
   collection,
   doc,
+  getDocs,
+  limit,
   orderBy,
+  query,
   runTransaction,
   where,
 } from 'firebase/firestore';
@@ -28,6 +31,24 @@ import {
  */
 export function getRouteById(routeId: string) {
   return new Route(doc(db, 'routes', routeId));
+}
+
+/** getRouteByName
+ * Returns a Firebase Route with the corresponding name, or undefined
+ * @param name: The Route's name
+ * @remarks The returned Route is not guaranteed to have data in firebase.
+ * This will result in subsequent getData() calls to throw.
+ * @returns A Firebase Route, or undefined
+ */
+export async function getRouteByName(name: string) {
+  const q = await getDocs(
+    query(collection(db, 'routes'), where('name', '==', name), limit(1))
+  );
+  if (q.size === 0) return undefined;
+  console.log(q.docs);
+  const res = new Route(q.docs[0].ref);
+  res.initWithDocumentData(q.docs[0].data());
+  return res;
 }
 
 export interface CreateRouteArgs {
