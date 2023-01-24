@@ -38,7 +38,7 @@ export function validUsername(username: string): boolean {
  * @param displayname
  */
 export function validDisplayname(displayname: string): boolean {
-  return displayname.match('^[a-zA-Z][a-zA-Z ]{3,28}[a-zA-Z]$') !== null;
+  return displayname.match('^[a-zA-Z][a-zA-Z -]{3,28}[a-zA-Z]$') !== null;
 }
 
 /** createUser
