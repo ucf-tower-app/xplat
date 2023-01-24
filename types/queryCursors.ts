@@ -92,6 +92,12 @@ export class QueryCursor<T extends LazyObject> {
     this.idx++;
     return res;
   }
+
+  public async ________getAll_CLOWNTOWN_LOTS_OF_READS() {
+    const res = [];
+    while (await this.hasNext()) res.push(await this.pollNext());
+    return res;
+  }
 }
 
 /** PostCursorMerger class
