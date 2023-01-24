@@ -9,10 +9,15 @@ import {
   DocumentReference,
   Transaction,
   arrayUnion,
+  collection,
   doc,
   getDoc,
+  getDocs,
+  limit,
+  query,
   runTransaction,
   serverTimestamp,
+  where,
 } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
 import { SubstringMatcher, User, UserStatus } from '../types/types';
@@ -118,13 +123,14 @@ export function getUserById(id: string) {
  * @returns A User, or undefined if no such user exists
  */
 export async function getUserByUsername(username: string) {
-  return getDoc(doc(db, 'caches', 'users'))
-    .then((snap) => {
-      const map = snap.get('usernameToUser');
-      if (map[username]) return new User(map[username]);
-      else return undefined;
-    })
-    .catch(() => undefined);
+  const q = await getDocs(
+    query(collection(db, 'users'), where('username', '==', username), limit(1))
+  );
+  if (q.size === 0) return undefined;
+  console.log(q.docs);
+  const res = new User(q.docs[0].ref);
+  res.initWithDocumentData(q.docs[0].data());
+  return res;
 }
 
 /** signIn
