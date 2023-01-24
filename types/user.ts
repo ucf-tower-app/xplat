@@ -10,9 +10,12 @@ import {
   Transaction,
   arrayRemove,
   arrayUnion,
+  collection,
   deleteDoc,
   doc,
+  orderBy,
   runTransaction,
+  where,
 } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
 import { DEFAULT_AVATAR_PATH, auth, db } from '../Firebase';
@@ -22,6 +25,7 @@ import {
   LazyObject,
   LazyStaticImage,
   Post,
+  QueryCursor,
   Send,
   UserStatus,
   containsRef,
@@ -360,6 +364,19 @@ export class User extends LazyObject {
       return Promise.reject(
         'Cannot perform this action on behalf of someone else.'
       );
+  }
+
+  /** getRecentSendsCursor
+   * Get a QueryCursor for a User's sends ordered by most recent
+   */
+  public getRecentSendsCursor() {
+    return new QueryCursor(
+      Send,
+      3,
+      collection(db, 'sends'),
+      where('user', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
   }
 
   public verifyEmailWithinTransaction(email: string, transaction: Transaction) {
