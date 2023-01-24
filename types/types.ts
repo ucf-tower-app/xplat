@@ -10,3 +10,4 @@ export * from './media';
 export * from './send';
 export * from './tag';
 export * from './queryCursors';
+export * from './substringMatcher';
