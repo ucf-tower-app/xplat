@@ -87,6 +87,8 @@ export async function createRoute({
   color = undefined,
   setterRawName = undefined,
 }: CreateRouteArgs) {
+  if ((await getRouteByName(name)) !== undefined)
+    return Promise.reject('Route with this name already exists!');
   const newRouteDocRef = doc(collection(db, 'routes'));
   const newForumDocRef = doc(collection(db, 'forums'));
 
