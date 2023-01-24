@@ -24,6 +24,6 @@ export class SubstringMatcher<T> {
     this.cleanToOutput.forEach((v, k) => {
       if (k.includes(substring)) res.push(v);
     });
-    return res;
+    return Array.from(new Set(res.flat(10)));
   }
 }
