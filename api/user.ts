@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import {
   Transaction,
+  arrayUnion,
   doc,
   getDoc,
   runTransaction,
@@ -67,10 +68,13 @@ export async function createUser(
         const newDocRef = doc(db, 'users', cred.user.uid);
         const cacheDocRef = doc(db, 'caches', 'users');
 
-        const map = (await transaction.get(cacheDocRef)).data()!.usernameToUser;
-        map[username] = newDocRef;
-
-        transaction.update(cacheDocRef, { usernameToUser: map });
+        transaction.update(cacheDocRef, {
+          allUsers: arrayUnion({
+            username: username,
+            displayName: displayName,
+            ref: newDocRef,
+          }),
+        });
         transaction.set(newDocRef, {
           username: username,
           email: email,
@@ -170,3 +174,20 @@ export const startWaitForVerificationPoll = (
     }).then(notifyVerified);
   }
 };
+
+// To uncomment if the cache changes and it needs to be reset. there's a lot of users and it's a pain to do manually.
+// export async function __INTERNAL__resetUserCache() {
+//   const usersCursor = new QueryCursor(User, 5, collection(db, 'users'));
+//   const newMap = (await usersCursor.________getAll_CLOWNTOWN_LOTS_OF_READS())
+//     .map((user) => {
+//       if (user)
+//         return {
+//           username: user.username!,
+//           displayName: user.displayName ?? user.username!,
+//           ref: user.docRef!,
+//         };
+//     })
+//     .filter((obj: any | undefined) => obj !== undefined);
+//   console.log(newMap);
+//   return setDoc(doc(db, 'caches', 'users'), { allUsers: newMap });
+// }
