@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
 } from 'firebase/auth';
 import {
+  DocumentReference,
   Transaction,
   arrayUnion,
   doc,
@@ -14,7 +15,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
-import { User, UserStatus } from '../types/types';
+import { SubstringMatcher, User, UserStatus } from '../types/types';
 
 /** isKnightsEmail
  * Check if an email is a knights email
@@ -174,6 +175,36 @@ export const startWaitForVerificationPoll = (
     }).then(notifyVerified);
   }
 };
+
+interface UserSearchResult {
+  username: string;
+  displayName: string;
+  user: User;
+}
+export async function getUserSubstringMatcher() {
+  const spread = new Map<string, UserSearchResult[]>();
+  (await getDoc(doc(db, 'caches', 'users')))
+    .data()!
+    .allUsers.forEach(
+      (obj: {
+        username: string;
+        displayName: string;
+        ref: DocumentReference;
+      }) => {
+        const res: UserSearchResult = {
+          username: obj.username,
+          displayName: obj.displayName,
+          user: new User(obj.ref),
+        };
+        if (!spread.has(obj.username)) spread.set(obj.username, []);
+        if (!spread.has(obj.displayName)) spread.set(obj.displayName, []);
+        spread.get(obj.username)?.push(res);
+        spread.get(obj.displayName)?.push(res);
+      }
+    );
+
+  return new SubstringMatcher(spread);
+}
 
 // To uncomment if the cache changes and it needs to be reset. there's a lot of users and it's a pain to do manually.
 // export async function __INTERNAL__resetUserCache() {
