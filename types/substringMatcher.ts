@@ -1,5 +1,5 @@
 function clean(str: string) {
-  return str.toLowerCase().replace(/\s/g, '');
+  return str.toLowerCase().replace(/\s/g, '').replace(/-/g, '');
 }
 
 /** class SubstringMatcher

@@ -34,11 +34,11 @@ export function validUsername(username: string): boolean {
 }
 
 /** validDisplayname
- * Check whether a displayname is 5-30 lower or upper a-z characters plus spaces, with no leading or trailing spaces
+ * Check whether a displayname is 5-30 lower or upper a-z characters plus spaces and hyphens, with no leading or trailing spaces
  * @param displayname
  */
 export function validDisplayname(displayname: string): boolean {
-  return displayname.match('^[a-zA-Z][a-zA-Z ]{3,28}[a-zA-Z]$') !== null;
+  return displayname.match('^[a-zA-Z][a-zA-Z -]{3,28}[a-zA-Z]$') !== null;
 }
 
 /** createUser
