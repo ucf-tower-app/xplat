@@ -177,14 +177,12 @@ export class User extends LazyObject {
     // However, to be sure, we'll collect some tasks to do after the main transaction.
     const postActions = await runTransaction(db, async (transaction) => {
       // Definitions
-      const usernameCacheDocRef = doc(db, 'caches', 'users');
+      const cacheDocRef = doc(db, 'caches', 'users');
 
       // Reads
-      const usernameCacheRead = transaction.get(usernameCacheDocRef);
       const thisUpdate = this.updateWithTransaction(transaction);
 
       await thisUpdate;
-      const usernameMap = (await usernameCacheRead).data()!.usernameToUser;
       // Writes
 
       const postActions: { posts: Post[]; comments: Comment[] } = {
@@ -203,10 +201,12 @@ export class User extends LazyObject {
         })
       );
 
-      delete usernameMap[this.username!];
-
-      transaction.update(usernameCacheDocRef, {
-        usernameToUser: usernameMap,
+      transaction.update(cacheDocRef, {
+        allUsers: arrayRemove({
+          username: this.username!,
+          displayName: this.displayName!,
+          ref: this.docRef!,
+        }),
       });
 
       return postActions;

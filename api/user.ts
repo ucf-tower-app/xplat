@@ -7,13 +7,16 @@ import {
 } from 'firebase/auth';
 import {
   Transaction,
+  arrayUnion,
+  collection,
   doc,
   getDoc,
   runTransaction,
   serverTimestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
-import { User, UserStatus } from '../types/types';
+import { QueryCursor, User, UserStatus } from '../types/types';
 
 /** isKnightsEmail
  * Check if an email is a knights email
@@ -67,10 +70,13 @@ export async function createUser(
         const newDocRef = doc(db, 'users', cred.user.uid);
         const cacheDocRef = doc(db, 'caches', 'users');
 
-        const map = (await transaction.get(cacheDocRef)).data()!.usernameToUser;
-        map[username] = newDocRef;
-
-        transaction.update(cacheDocRef, { usernameToUser: map });
+        transaction.update(cacheDocRef, {
+          allUsers: arrayUnion({
+            username: username,
+            displayName: displayName,
+            ref: newDocRef,
+          }),
+        });
         transaction.set(newDocRef, {
           username: username,
           email: email,
@@ -170,3 +176,19 @@ export const startWaitForVerificationPoll = (
     }).then(notifyVerified);
   }
 };
+
+export async function __INTERNAL__resetUserCache() {
+  const usersCursor = new QueryCursor(User, 5, collection(db, 'users'));
+  const newMap = (await usersCursor.________getAll_CLOWNTOWN_LOTS_OF_READS())
+    .map((user) => {
+      if (user)
+        return {
+          username: user.username!,
+          displayName: user.displayName ?? user.username!,
+          ref: user.docRef!,
+        };
+    })
+    .filter((obj: any | undefined) => obj !== undefined);
+  console.log(newMap);
+  return setDoc(doc(db, 'caches', 'users'), { allUsers: newMap });
+}
