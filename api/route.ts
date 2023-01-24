@@ -100,13 +100,6 @@ export async function createRoute({
   }
 
   return runTransaction(db, async (transaction: Transaction) => {
-    const cacheDocRef = doc(db, 'caches', 'allRoutes');
-
-    const routeNameToRoute = (await transaction.get(cacheDocRef)).data()!
-      .routeNameToRoute;
-    routeNameToRoute[name] = newRouteDocRef;
-
-    transaction.update(cacheDocRef, { routeNameToRoute: routeNameToRoute });
     transaction.set(newRouteDocRef, {
       name: name,
       rawgrade: classifier.rawgrade,

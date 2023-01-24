@@ -5,6 +5,7 @@ import {
   arrayRemove,
   arrayUnion,
   deleteDoc,
+  doc,
   refEqual,
   runTransaction,
   serverTimestamp,
@@ -159,6 +160,7 @@ export class Route extends LazyObject {
    */
   public async upgradeStatus() {
     const client_oldStatus = await this.getStatus();
+    const cacheDocRef = doc(db, 'caches', 'archivedRoutes');
 
     return runTransaction(db, async (transaction) => {
       await this.updateWithTransaction(transaction);
@@ -172,6 +174,7 @@ export class Route extends LazyObject {
         });
         this.status = RouteStatus.Active;
       } else {
+        transaction.update(cacheDocRef, { names: arrayUnion(this.name) });
         transaction.update(this.docRef!, { status: RouteStatus.Archived });
         this.status = RouteStatus.Archived;
       }
