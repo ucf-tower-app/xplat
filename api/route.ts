@@ -3,6 +3,7 @@ import {
   Transaction,
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -12,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
+import { SubstringMatcher } from '../types/substringMatcher';
 import {
   QueryCursor,
   Route,
@@ -177,6 +179,11 @@ export function getDraftRoutesCursor() {
     where('status', 'in', [RouteStatus.Draft]),
     orderBy('timestamp', 'desc')
   );
+}
+
+export async function getArchivedRoutesSubstringMatcher() {
+  const names = await getDoc(doc(db, 'caches', 'archivedRoutes'));
+  return new SubstringMatcher(names.data()!.names);
 }
 
 /** getAllBoulderClassifiers
