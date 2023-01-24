@@ -181,9 +181,12 @@ export function getDraftRoutesCursor() {
   );
 }
 
+/** getArchivedRoutesSubstringMatcher
+ * Get a matcher which will substring match the names of all archived routes
+ */
 export async function getArchivedRoutesSubstringMatcher() {
   const names = await getDoc(doc(db, 'caches', 'archivedRoutes'));
-  return new SubstringMatcher(names.data()!.names);
+  return new SubstringMatcher<string>(names.data()!.names);
 }
 
 /** getAllBoulderClassifiers
