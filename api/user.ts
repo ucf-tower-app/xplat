@@ -8,15 +8,13 @@ import {
 import {
   Transaction,
   arrayUnion,
-  collection,
   doc,
   getDoc,
   runTransaction,
   serverTimestamp,
-  setDoc,
 } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
-import { QueryCursor, User, UserStatus } from '../types/types';
+import { User, UserStatus } from '../types/types';
 
 /** isKnightsEmail
  * Check if an email is a knights email
@@ -177,18 +175,19 @@ export const startWaitForVerificationPoll = (
   }
 };
 
-export async function __INTERNAL__resetUserCache() {
-  const usersCursor = new QueryCursor(User, 5, collection(db, 'users'));
-  const newMap = (await usersCursor.________getAll_CLOWNTOWN_LOTS_OF_READS())
-    .map((user) => {
-      if (user)
-        return {
-          username: user.username!,
-          displayName: user.displayName ?? user.username!,
-          ref: user.docRef!,
-        };
-    })
-    .filter((obj: any | undefined) => obj !== undefined);
-  console.log(newMap);
-  return setDoc(doc(db, 'caches', 'users'), { allUsers: newMap });
-}
+// To uncomment if the cache changes and it needs to be reset. there's a lot of users and it's a pain to do manually.
+// export async function __INTERNAL__resetUserCache() {
+//   const usersCursor = new QueryCursor(User, 5, collection(db, 'users'));
+//   const newMap = (await usersCursor.________getAll_CLOWNTOWN_LOTS_OF_READS())
+//     .map((user) => {
+//       if (user)
+//         return {
+//           username: user.username!,
+//           displayName: user.displayName ?? user.username!,
+//           ref: user.docRef!,
+//         };
+//     })
+//     .filter((obj: any | undefined) => obj !== undefined);
+//   console.log(newMap);
+//   return setDoc(doc(db, 'caches', 'users'), { allUsers: newMap });
+// }
