@@ -19,27 +19,24 @@ export enum UserStatus {
 export class ArrayCursor<T> {
   public data: T[];
   private idx: number;
-  private stride: number;
 
-  constructor(data: T[], stride = 10) {
+  constructor(data: T[]) {
     this.data = data;
     this.idx = 0;
-    this.stride = stride;
   }
 
   public hasNext() {
     return this.idx < this.data.length;
   }
 
-  public getNext(stride: number | undefined) {
-    if (!this.hasNext()) return [];
-    const res = this.data.slice(this.idx, this.idx + (stride ?? this.stride));
-    this.idx += stride ?? this.stride;
-    return res;
+  public pollNext() {
+    if (!this.hasNext()) return undefined;
+    return this.data[this.idx++];
   }
 
-  public forEachNext<Q>(stride: number | undefined, callback: (arg: T) => Q) {
-    return this.getNext(stride).map(callback);
+  public peekNext() {
+    if (!this.hasNext()) return undefined;
+    return this.data[this.idx];
   }
 }
 

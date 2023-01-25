@@ -1,6 +1,13 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { DocumentData, DocumentReference } from 'firebase/firestore';
-import { LazyObject, Post, Route } from './types';
+import {
+  DocumentData,
+  DocumentReference,
+  collection,
+  orderBy,
+  where,
+} from 'firebase/firestore';
+import { db } from '../Firebase';
+import { LazyObject, Post, QueryCursor, Route } from './types';
 
 export class Forum extends LazyObject {
   // Filled with defaults if not present when getting data
@@ -21,14 +28,20 @@ export class Forum extends LazyObject {
     this.hasData = true;
   }
 
-  // ======================== Trivial Getters Below ========================
-
-  /** getPosts
+  /** getPostsCursor
+   * get a QueryCursor for a Forum's posts starting from most recent
    */
-  public async getPosts() {
-    if (!this.hasData) await this.getData();
-    return this.posts!;
+  public getPostsCursor() {
+    return new QueryCursor(
+      Post,
+      3,
+      collection(db, 'posts'),
+      where('forum', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
   }
+
+  // ======================== Trivial Getters Below ========================
 
   /** hasRoute
    */

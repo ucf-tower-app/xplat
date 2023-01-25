@@ -10,18 +10,23 @@ import {
   Transaction,
   arrayRemove,
   arrayUnion,
+  collection,
   deleteDoc,
   doc,
+  orderBy,
   runTransaction,
+  where,
 } from 'firebase/firestore';
 import { deleteObject } from 'firebase/storage';
 import { DEFAULT_AVATAR_PATH, auth, db } from '../Firebase';
 import { isKnightsEmail } from '../api';
 import {
+  ArrayCursor,
   Comment,
   LazyObject,
   LazyStaticImage,
   Post,
+  QueryCursor,
   Send,
   UserStatus,
   containsRef,
@@ -368,13 +373,40 @@ export class User extends LazyObject {
     transaction.update(this.docRef!, { status: this.status });
   }
 
-  // ======================== Trivial Getters Below ========================
-  /** getPosts()
+  /** getPostsCursor
+   * get a QueryCursor for a Users's posts starting from most recent
    */
-  public async getPosts() {
-    if (!this.hasData) await this.getData();
-    return this.posts!;
+  public getPostsCursor() {
+    return new QueryCursor(
+      Post,
+      3,
+      collection(db, 'posts'),
+      where('author', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
   }
+
+  /** getFollowingCursor
+   * get an ArrayCursor for a User's following
+   */
+  public async getFollowingCursor() {
+    if (!this.hasData) await this.getData();
+    return new ArrayCursor(this.following!);
+  }
+
+  /** getFollowersCursor
+   * get a QueryCursor for a Users's followers
+   */
+  public getFollowersCursor() {
+    return new QueryCursor(
+      Post,
+      5,
+      collection(db, 'users'),
+      where('following', 'array-contains', this.docRef!)
+    );
+  }
+
+  // ======================== Trivial Getters Below ========================
 
   /** getAvatarUrl()
    */
@@ -437,20 +469,6 @@ export class User extends LazyObject {
   public async getSends() {
     if (!this.hasData) await this.getData();
     return this.sends!;
-  }
-
-  /** getFollowing()
-   */
-  public async getFollowing() {
-    if (!this.hasData) await this.getData();
-    return this.following!;
-  }
-
-  /** getFollowers()
-   */
-  public async getFollowers() {
-    if (!this.hasData) await this.getData();
-    return this.followers!;
   }
 }
 

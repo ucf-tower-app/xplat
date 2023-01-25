@@ -8,10 +8,12 @@ import {
   collection,
   doc,
   increment,
+  orderBy,
   refEqual,
   runTransaction,
   serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { deleteObject, getMetadata } from 'firebase/storage';
 import { db } from '../Firebase';
@@ -21,6 +23,7 @@ import {
   LazyObject,
   LazyStaticImage,
   LazyStaticVideo,
+  QueryCursor,
   User,
 } from './types';
 
@@ -106,6 +109,19 @@ export class Post extends LazyObject {
       );
   }
 
+  /** getCommentsCursor
+   * get a QueryCursor for a Post's comments starting from most recent
+   */
+  public getCommentsCursor() {
+    return new QueryCursor(
+      Post,
+      5,
+      collection(db, 'comments'),
+      where('post', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
+  }
+
   public async likedBy(user: User) {
     return this.getLikes().then((likes) =>
       likes.some((like) => refEqual(like.docRef!, user.docRef!))
@@ -130,11 +146,6 @@ export class Post extends LazyObject {
   public async getLikes() {
     if (!this.hasData) await this.getData();
     return this.likes!;
-  }
-
-  public async getComments() {
-    if (!this.hasData) await this.getData();
-    return this.comments!;
   }
 
   public async getForum() {

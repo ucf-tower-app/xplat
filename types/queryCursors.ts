@@ -142,6 +142,10 @@ export class PostCursorMerger {
     this.next = undefined;
     return (await this.nextSide())?.pollNext();
   }
+
+  public async hasNext(): Promise<boolean> {
+    return (await this.peekNext()) !== undefined;
+  }
 }
 
 // Not suitable for human consumption
