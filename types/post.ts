@@ -114,7 +114,7 @@ export class Post extends LazyObject {
    */
   public getCommentsCursor() {
     return new QueryCursor(
-      Post,
+      Comment,
       5,
       collection(db, 'comments'),
       where('post', '==', this.docRef!),

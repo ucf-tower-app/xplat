@@ -27,6 +27,8 @@ import {
   LazyStaticImage,
   Post,
   QueryCursor,
+  RouteClassifier,
+  RouteType,
   Send,
   UserStatus,
   containsRef,
@@ -49,6 +51,8 @@ export class User extends LazyObject {
   public avatar?: LazyStaticImage;
   public comments?: Comment[];
   public totalPostSizeInBytes?: number;
+  public totalSends?: Map<RouteType, number>;
+  public bestSends?: Map<RouteType, number>;
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -73,6 +77,13 @@ export class User extends LazyObject {
     );
     this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
     this.totalPostSizeInBytes = data.totalPostSizeInBytes ?? 0;
+
+    this.totalSends = new Map(
+      Object.entries(data.totalSends ?? {}).map((a) => a as [RouteType, number])
+    );
+    this.bestSends = new Map(
+      Object.entries(data.bestSends ?? {}).map((a) => a as [RouteType, number])
+    );
 
     this.hasData = true;
   }
@@ -367,10 +378,43 @@ export class User extends LazyObject {
       );
   }
 
+  /** getRecentSendsCursor
+   * Get a QueryCursor for a User's sends ordered by most recent
+   */
+  public getRecentSendsCursor() {
+    return new QueryCursor(
+      Send,
+      3,
+      collection(db, 'sends'),
+      where('user', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
+  }
+
   public verifyEmailWithinTransaction(email: string, transaction: Transaction) {
     if (isKnightsEmail(email)) this.status = UserStatus.Approved;
     else this.status = UserStatus.Verified;
     transaction.update(this.docRef!, { status: this.status });
+  }
+
+  /** getBestSendClassifier
+   * Get the best send for a given type
+   * @param type: The query type
+   * @returns A RouteClassifier, or undefined
+   */
+  public async getBestSendClassifier(type: RouteType) {
+    if (!this.hasData) await this.getData();
+    const grade = this.bestSends!.get(type);
+    if (grade) return new RouteClassifier(grade, type);
+  }
+
+  /** getTotalSends
+   * Get the number of sends for a given type
+   * @param type: The query type
+   */
+  public async getTotalSends(type: RouteType) {
+    if (!this.hasData) await this.getData();
+    return this.totalSends!.get(type) ?? 0;
   }
 
   /** getPostsCursor
@@ -386,20 +430,12 @@ export class User extends LazyObject {
     );
   }
 
-  /** getFollowingCursor
-   * get an ArrayCursor for a User's following
-   */
-  public async getFollowingCursor() {
-    if (!this.hasData) await this.getData();
-    return new ArrayCursor(this.following!);
-  }
-
   /** getFollowersCursor
    * get a QueryCursor for a Users's followers
    */
   public getFollowersCursor() {
     return new QueryCursor(
-      Post,
+      User,
       5,
       collection(db, 'users'),
       where('following', 'array-contains', this.docRef!)
@@ -407,6 +443,14 @@ export class User extends LazyObject {
   }
 
   // ======================== Trivial Getters Below ========================
+
+  /** getFollowingCursor
+   * get an ArrayCursor for a User's following
+   */
+  public async getFollowingCursor() {
+    if (!this.hasData) await this.getData();
+    return new ArrayCursor(this.following!);
+  }
 
   /** getAvatarUrl()
    */

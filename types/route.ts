@@ -29,6 +29,12 @@ export enum RouteType {
   Competition = 'Competition',
 }
 
+export enum RouteTech {
+  OH = 'OH',
+  ON = 'ON',
+  OFF = 'OFF',
+}
+
 export enum RouteStatus {
   Draft = 0,
   Active = 1,
@@ -85,6 +91,7 @@ export interface EditRouteArgs {
   thumbnail?: Blob;
   color?: string;
   setterRawName?: string;
+  tech?: RouteTech;
 }
 
 export class Route extends LazyObject {
@@ -107,6 +114,7 @@ export class Route extends LazyObject {
   public timestamp?: Date;
   public color?: string;
   public setterRawName?: string;
+  public tech?: RouteTech;
 
   public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
@@ -130,6 +138,7 @@ export class Route extends LazyObject {
     if (data.thumbnail) this.thumbnail = new LazyStaticImage(data.thumbnail);
     if (data.rope) this.rope = data.rope;
     if (data.color) this.color = data.color;
+    if (data.tech) this.tech = data.tech;
     if (data.setterRawName) this.setterRawName = data.setterRawName;
     if (data.timestamp)
       this.timestamp = new Date(
@@ -227,7 +236,22 @@ export class Route extends LazyObject {
     }
     const newSendDocRef = doc(collection(db, 'sends'));
     await runTransaction(db, async (transaction) => {
-      await this.updateWithTransaction(transaction);
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        sender.updateWithTransaction(transaction),
+      ]);
+      const totalSends = sender.totalSends!;
+      const bestSends = sender.bestSends!;
+      totalSends.set(
+        this.classifier!.type,
+        (totalSends.get(this.classifier!.type) ?? 0) + 1
+      );
+      if (
+        (bestSends.get(this.classifier!.type) ?? this.classifier!.rawgrade) <=
+        this.classifier!.rawgrade
+      )
+        bestSends.set(this.classifier!.type, this.classifier!.rawgrade);
+
       this.sendCount = this.sendCount! + 1;
       transaction
         .update(this.docRef!, { sendCount: increment(1) })
@@ -235,6 +259,12 @@ export class Route extends LazyObject {
           user: sender.docRef!,
           route: this.docRef!,
           timestamp: serverTimestamp(),
+          rawgrade: this.classifier!.rawgrade,
+          type: this.classifier!.type as string,
+        })
+        .update(sender.docRef!, {
+          totalSends: Object.fromEntries(totalSends),
+          bestSends: Object.fromEntries(bestSends),
         });
     });
     return new Send(newSendDocRef);
@@ -259,13 +289,14 @@ export class Route extends LazyObject {
    * All params are optional since not every param *has* to change.
    * @param name: Route's name
    * @param classifier: Route's classifier
-   * @param description: Optional, the route's description
-   * @param tags: Optional, a list of Tag, the route's tags
-   * @param setter: Optional, the Tower User of the setter
-   * @param rope: Optional, which rope the route is on / closest to
-   * @param thumbnail: Optional, the route's thumbnail
-   * @param color: Optional, the hold colors
-   * @param setterRawName: Optional, if no setter User exists, then just the name of the setter
+   * @param description: The route's description
+   * @param tags: A list of Tag, the route's tags
+   * @param setter: The Tower User of the setter
+   * @param rope: Which rope the route is on / closest to
+   * @param thumbnail: The route's thumbnail
+   * @param color: The hold colors
+   * @param setterRawName: If no setter User exists, then just the name of the setter
+   * @param tech: The route's tech
    * @remarks Updates this route's fields
    */
   public async edit({
@@ -278,6 +309,7 @@ export class Route extends LazyObject {
     thumbnail = undefined,
     color = undefined,
     setterRawName = undefined,
+    tech = undefined,
   }: EditRouteArgs) {
     if (name && (await getRouteByName(name)) !== undefined)
       return Promise.reject('Route with this name already exists!');
@@ -299,6 +331,7 @@ export class Route extends LazyObject {
         ...(setter && { setter: setter }),
         ...(rope && { rope: rope }),
         ...(color && { color: color }),
+        ...(tech && { tech: tech }),
         ...(setterRawName && { setterRawName: setterRawName }),
         ...(thumbnail && { thumbnail: 'routeThumbnails/' + this.docRef!.id }),
       });
@@ -329,16 +362,23 @@ export class Route extends LazyObject {
     );
   }
 
+  /** getTech
+   */
+  public async getTech() {
+    if (!this.hasData) await this.getData();
+    return this.tech!;
+  }
+
   /** hasTimestamp
    */
-  public async hasTimestamp(user: User) {
+  public async hasTimestamp() {
     if (!this.hasData) await this.getData();
     return this.timestamp !== undefined;
   }
 
   /** getTimestamp
    */
-  public async getTimestamp(user: User) {
+  public async getTimestamp() {
     if (!this.hasData) await this.getData();
     return this.timestamp!;
   }
