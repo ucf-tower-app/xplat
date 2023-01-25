@@ -227,7 +227,22 @@ export class Route extends LazyObject {
     }
     const newSendDocRef = doc(collection(db, 'sends'));
     await runTransaction(db, async (transaction) => {
-      await this.updateWithTransaction(transaction);
+      await Promise.all([
+        this.updateWithTransaction(transaction),
+        sender.updateWithTransaction(transaction),
+      ]);
+      const totalSends = sender.totalSends!;
+      const bestSends = sender.bestSends!;
+      totalSends.set(
+        this.classifier!.type,
+        (totalSends.get(this.classifier!.type) ?? 0) + 1
+      );
+      if (
+        (bestSends.get(this.classifier!.type) ?? this.classifier!.rawgrade) <=
+        this.classifier!.rawgrade
+      )
+        bestSends.set(this.classifier!.type, this.classifier!.rawgrade);
+
       this.sendCount = this.sendCount! + 1;
       transaction
         .update(this.docRef!, { sendCount: increment(1) })
@@ -235,6 +250,12 @@ export class Route extends LazyObject {
           user: sender.docRef!,
           route: this.docRef!,
           timestamp: serverTimestamp(),
+          rawgrade: this.classifier!.rawgrade,
+          type: this.classifier!.type as string,
+        })
+        .update(sender.docRef!, {
+          totalSends: Object.fromEntries(totalSends),
+          bestSends: Object.fromEntries(bestSends),
         });
     });
     return new Send(newSendDocRef);
