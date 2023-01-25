@@ -26,6 +26,8 @@ import {
   LazyStaticImage,
   Post,
   QueryCursor,
+  RouteClassifier,
+  RouteType,
   Send,
   UserStatus,
   containsRef,
@@ -48,6 +50,8 @@ export class User extends LazyObject {
   public avatar?: LazyStaticImage;
   public comments?: Comment[];
   public totalPostSizeInBytes?: number;
+  public totalSends?: Map<RouteType, number>;
+  public bestSends?: Map<RouteType, number>;
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -72,6 +76,13 @@ export class User extends LazyObject {
     );
     this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
     this.totalPostSizeInBytes = data.totalPostSizeInBytes ?? 0;
+
+    this.totalSends = new Map(
+      Object.entries(data.totalSends ?? {}).map((a) => a as [RouteType, number])
+    );
+    this.bestSends = new Map(
+      Object.entries(data.bestSends ?? {}).map((a) => a as [RouteType, number])
+    );
 
     this.hasData = true;
   }
@@ -383,6 +394,26 @@ export class User extends LazyObject {
     if (isKnightsEmail(email)) this.status = UserStatus.Approved;
     else this.status = UserStatus.Verified;
     transaction.update(this.docRef!, { status: this.status });
+  }
+
+  /** getBestSendClassifier
+   * Get the best send for a given type
+   * @param type: The query type
+   * @returns A RouteClassifier, or undefined
+   */
+  public async getBestSendClassifier(type: RouteType) {
+    if (!this.hasData) await this.getData();
+    const grade = this.bestSends!.get(type);
+    if (grade) return new RouteClassifier(grade, type);
+  }
+
+  /** getTotalSends
+   * Get the number of sends for a given type
+   * @param type: The query type
+   */
+  public async getTotalSends(type: RouteType) {
+    if (!this.hasData) await this.getData();
+    return this.totalSends!.get(type) ?? 0;
   }
 
   // ======================== Trivial Getters Below ========================
