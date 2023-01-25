@@ -62,6 +62,10 @@ export class QueryCursor<T extends LazyObject> {
   private async advance() {
     await this.firstQuery;
     if (this.idx < this.results.length) return;
+    if (this.lastVisible === undefined) {
+      this.results.push(undefined);
+      return;
+    }
     const snaps = await getDocs(
       query(
         this.collection,
@@ -141,6 +145,10 @@ export class PostCursorMerger {
   public async pollNext(): Promise<Post | undefined> {
     this.next = undefined;
     return (await this.nextSide())?.pollNext();
+  }
+
+  public async hasNext(): Promise<boolean> {
+    return (await this.peekNext()) !== undefined;
   }
 }
 
