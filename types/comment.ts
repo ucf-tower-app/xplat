@@ -9,7 +9,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { LazyObject, Post, User } from './types';
+import { LazyObject, Post, User, containsRef } from './types';
 
 export class Comment extends LazyObject {
   public author?: User;
@@ -64,9 +64,8 @@ export class Comment extends LazyObject {
    * Checks if the given user has liked this comment
    */
   public async likedBy(user: User) {
-    return this.getLikes().then((likes) =>
-      likes.some((like) => refEqual(like.docRef!, user.docRef!))
-    );
+    if (!this.hasData) await this.getData();
+    return containsRef(this.likes!, user);
   }
 
   /** addLike
@@ -75,6 +74,7 @@ export class Comment extends LazyObject {
   public async addLike(user: User) {
     if (this.hasData && (await this.likedBy(user))) return;
     await runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
       transaction.update(this.docRef!, { likes: arrayUnion(user.docRef!) });
     });
     if (this.hasData) this.likes?.push(user);
@@ -86,6 +86,7 @@ export class Comment extends LazyObject {
   public async removeLike(user: User) {
     if (this.hasData && !(await this.likedBy(user))) return;
     await runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
       transaction.update(this.docRef!, { likes: arrayRemove(user.docRef!) });
     });
     if (this.hasData)
