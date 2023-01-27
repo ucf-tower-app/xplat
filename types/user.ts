@@ -452,6 +452,13 @@ export class User extends LazyObject {
     return new ArrayCursor(this.following!);
   }
 
+  /** isFollowing
+   */
+  public async isFollowing(user: User) {
+    if (!this.hasData) await this.getData();
+    return containsRef(this.following!, user);
+  }
+
   /** getAvatarUrl()
    */
   public async getAvatarUrl() {
