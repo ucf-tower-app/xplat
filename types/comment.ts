@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
   DocumentData,
+  DocumentReference,
   arrayRemove,
+  arrayUnion,
+  refEqual,
   runTransaction,
   updateDoc,
 } from 'firebase/firestore';
@@ -14,6 +17,9 @@ export class Comment extends LazyObject {
   public textContent?: string;
   public post?: Post;
 
+  // Filled with defaults if not present when getting data
+  public likes?: User[];
+
   public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
     this.timestamp = new Date(
@@ -21,6 +27,10 @@ export class Comment extends LazyObject {
     );
     this.textContent = data.textContent;
     this.post = new Post(data.post);
+
+    this.likes = (data.likes ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
 
     this.hasData = true;
   }
@@ -48,6 +58,40 @@ export class Comment extends LazyObject {
       });
       transaction.delete(this.docRef!);
     });
+  }
+
+  /** likedBy
+   * Checks if the given user has liked this comment
+   */
+  public async likedBy(user: User) {
+    return this.getLikes().then((likes) =>
+      likes.some((like) => refEqual(like.docRef!, user.docRef!))
+    );
+  }
+
+  /** addLike
+   * Add a like to this comment
+   */
+  public async addLike(user: User) {
+    if (this.hasData && (await this.likedBy(user))) return;
+    await runTransaction(db, async (transaction) => {
+      transaction.update(this.docRef!, { likes: arrayUnion(user.docRef!) });
+    });
+    if (this.hasData) this.likes?.push(user);
+  }
+
+    /** removeLike
+   * Remove a like from this comment
+   */
+  public async removeLike(user: User) {
+    if (this.hasData && !(await this.likedBy(user))) return;
+    await runTransaction(db, async (transaction) => {
+      transaction.update(this.docRef!, { likes: arrayRemove(user.docRef!) });
+    });
+    if (this.hasData)
+      this.likes = this.likes?.filter(
+        (like) => !refEqual(like.docRef!, user.docRef!)
+      );
   }
 
   // ======================== Trivial Getters Below ========================
@@ -79,14 +123,22 @@ export class Comment extends LazyObject {
     if (!this.hasData) await this.getData();
     return this.post!;
   }
+
+  /** getLikes
+   */
+  public async getLikes() {
+    if (!this.hasData) await this.getData();
+    return this.likes!;
+  }
 }
 
 export class CommentMock extends Comment {
-  constructor(author: User, timestamp: Date, textContent: string) {
+  constructor(author: User, timestamp: Date, textContent: string, likes: User[]) {
     super();
     this.author = author;
     this.timestamp = timestamp;
     this.textContent = textContent;
+    this.likes = likes;
 
     this.hasData = true;
   }

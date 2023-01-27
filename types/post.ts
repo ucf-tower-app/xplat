@@ -79,6 +79,7 @@ export class Post extends LazyObject {
         author: author.docRef!,
         textContent: textContent,
         timestamp: serverTimestamp(),
+        likes: [],
         post: this.docRef!,
       });
       transaction.update(author.docRef!, {
