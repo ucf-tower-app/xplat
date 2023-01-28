@@ -16,7 +16,7 @@ export enum UserStatus {
   Developer = 5,
 }
 
-export class ArrayCursor<T> {
+export class ArrayCursor<T extends LazyObject> {
   public data: T[];
   private idx: number;
 
@@ -29,9 +29,13 @@ export class ArrayCursor<T> {
     return this.idx < this.data.length;
   }
 
-  public pollNext() {
-    if (!this.hasNext()) return undefined;
-    return this.data[this.idx++];
+  public async pollNext() {
+    while (this.hasNext()) {
+      const res = this.data[this.idx++];
+      await res.getData();
+      if (res.exists) return res;
+    }
+    return undefined;
   }
 
   public peekNext() {
