@@ -26,6 +26,7 @@ import {
   LazyStaticVideo,
   QueryCursor,
   User,
+  containsRef,
 } from './types';
 
 export class Post extends LazyObject {
@@ -115,9 +116,8 @@ export class Post extends LazyObject {
   }
 
   public async likedBy(user: User) {
-    return this.getLikes().then((likes) =>
-      likes.some((like) => refEqual(like.docRef!, user.docRef!))
-    );
+    if (!this.hasData) await this.getData();
+    return containsRef(this.likes!, user);
   }
 
   public async getAuthor() {
