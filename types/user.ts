@@ -18,8 +18,13 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { deleteObject } from 'firebase/storage';
-import { DEFAULT_AVATAR_PATH, auth, db } from '../Firebase';
+import {
+  deleteObject,
+  getDownloadURL,
+  ref,
+  uploadBytes,
+} from 'firebase/storage';
+import { DEFAULT_AVATAR_PATH, auth, db, storage } from '../Firebase';
 import { isKnightsEmail } from '../api';
 import {
   ArrayCursor,
@@ -67,6 +72,7 @@ export class User extends LazyObject {
     );
 
     this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
+
     this.totalPostSizeInBytes = data.totalPostSizeInBytes ?? 0;
 
     this.totalSends = new Map(
@@ -374,7 +380,52 @@ export class User extends LazyObject {
       where('author', '==', this.docRef!),
       orderBy('timestamp', 'desc')
     );
+
+  /** setAvatar
+   * Set this user's avatar.
+   * @param avatar: The user's avatar
+   * @throws if the new avatar is over 100k
+   * @throws if this is not the signed in user
+   */
+  public async setAvatar(avatar: Blob) {
+    await this.checkIfSignedIn();
+
+    console.log(avatar.size);
+    if (avatar.size > 100_000) return Promise.reject('Avatar too large!');
+
+    if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
+      await deleteObject(this.avatar.getStorageRef());
+
+    await uploadBytes(ref(storage, 'avatars/' + this.docRef!.id), avatar);
+    return runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
+      this.avatar = new LazyStaticImage('avatars/' + this.docRef!.id);
+      transaction.update(this.docRef!, {
+        avatar: 'avatars/' + this.docRef!.id,
+      });
+    });
   }
+
+  /** deleteAvatar
+   * Delete this user's avatar.
+   * @throws if this is not the signed in user
+   */
+  public async deleteAvatar() {
+    await this.checkIfSignedIn();
+    if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
+      await deleteObject(this.avatar.getStorageRef());
+  }
+
+  /** getAvatarUrl()
+   */
+  public async getAvatarUrl() {
+    if (!this.hasData) {
+      return getDownloadURL(ref(storage, 'avatars/' + this.docRef!.id));
+    } else {
+      return this.avatar!.getImageUrl();
+    }
+  }
+
   // ======================== Trivial Getters Below ========================
 
   /** getFollowingCursor
@@ -390,13 +441,6 @@ export class User extends LazyObject {
   public async isFollowing(user: User) {
     if (!this.hasData) await this.getData();
     return containsRef(this.following!, user);
-  }
-
-  /** getAvatarUrl()
-   */
-  public async getAvatarUrl() {
-    if (!this.hasData) await this.getData();
-    return this.avatar!.getImageUrl();
   }
 
   /** getTotalPostSizeInBytes()
