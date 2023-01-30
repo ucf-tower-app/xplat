@@ -106,6 +106,8 @@ export class Route extends LazyObject {
   public status?: RouteStatus;
   public description?: string;
   public sendCount?: number;
+  public totalStars?: number;
+  public numRatings?: number;
 
   // Might remain undefined even if has data
   public setter?: User;
@@ -132,6 +134,8 @@ export class Route extends LazyObject {
     );
     this.status = (data.status ?? 0) as RouteStatus;
     this.sendCount = data.sendCount ?? 0;
+    this.totalStars = data.totalStars ?? 0;
+    this.numRatings = data.numRatings ?? 0;
     this.description = data.description ?? '';
 
     if (data.setter) this.setter = new User(data.setter);
@@ -226,9 +230,11 @@ export class Route extends LazyObject {
   /** FUCKINSENDIT
    * FUCKIN SEND IT, MAN! HELL YEAH MY BROTHER
    * @param sender: The sender
+   * @param rating: Optional, a number 1-5, the star rating given
    * @returns: Either the send if they've already sent it, or the new send
+   * @remarks Updates numSends and star ratings accordingly
    */
-  public async FUCKINSENDIT(sender: User) {
+  public async FUCKINSENDIT(sender: User, rating: number | undefined) {
     const already = await this.getSendByUser(sender);
     if (already !== undefined) {
       console.log('Already sent it');
@@ -253,8 +259,18 @@ export class Route extends LazyObject {
         bestSends.set(this.classifier!.type, this.classifier!.rawgrade);
 
       this.sendCount = this.sendCount! + 1;
+      if (rating) {
+        this.totalStars! += rating;
+        this.numRatings! += 1;
+      }
       transaction
-        .update(this.docRef!, { sendCount: increment(1) })
+        .update(this.docRef!, {
+          sendCount: increment(1),
+          ...(rating && {
+            totalStars: increment(rating),
+            numRatings: increment(1),
+          }),
+        })
         .set(newSendDocRef, {
           user: sender.docRef!,
           route: this.docRef!,
