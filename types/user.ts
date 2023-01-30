@@ -15,6 +15,7 @@ import {
   doc,
   orderBy,
   runTransaction,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import {
@@ -51,10 +52,7 @@ export class User extends LazyObject {
   // Filled with defaults if not present when getting data
   public sends?: Send[];
   public following?: User[];
-  public followers?: User[];
-  public posts?: Post[];
   public avatar?: LazyStaticImage;
-  public comments?: Comment[];
   public totalPostSizeInBytes?: number;
   public totalSends?: Map<RouteType, number>;
   public bestSends?: Map<RouteType, number>;
@@ -65,22 +63,16 @@ export class User extends LazyObject {
     this.displayName = data.displayName;
     this.bio = data.bio;
     this.status = data.status as UserStatus;
-    this.posts = (data.posts ?? []).map(
-      (ref: DocumentReference<DocumentData>) => new Post(ref)
-    );
+
     this.sends = (data.sends ?? []).map(
       (ref: DocumentReference<DocumentData>) => new Send(ref)
     );
     this.following = (data.following ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
-    this.followers = (data.followers ?? []).map(
-      (ref: DocumentReference<DocumentData>) => new User(ref)
-    );
-    this.comments = (data.comments ?? []).map(
-      (ref: DocumentReference<DocumentData>) => new Comment(ref)
-    );
-    this.avatar = new LazyStaticImage(data.avatar ?? DEFAULT_AVATAR_PATH);
+
+    this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
+
     this.totalPostSizeInBytes = data.totalPostSizeInBytes ?? 0;
 
     this.totalSends = new Map(
@@ -96,67 +88,29 @@ export class User extends LazyObject {
   /** followUser
    * Follow a user.
    * @param other: The User to follow
-   * @remarks both this and other's following and follower lists will be updated
+   * @remarks this following list will be updated
    */
   public async followUser(other: User) {
     // If we already have data, might as well run the free short-circuit check.
     // We're going to run it anyways during the transaction, but if we can avoid it,
     // might as well do it now.
-    if (this.hasData && containsRef(this.following!, other)) return;
-
-    return runTransaction(db, async (transaction: Transaction) => {
-      const thisSnap = await transaction.get(this.docRef!);
-      const otherSnap = await transaction.get(other.docRef!);
-
-      this.initWithDocumentData(thisSnap.data()!);
-      other.initWithDocumentData(otherSnap.data()!);
-
-      if (containsRef(this.following!, other)) return;
-
-      this.following?.push(other);
-      other.followers?.push(this);
-
-      transaction.update(this.docRef!, {
-        following: arrayUnion(other.docRef),
-      });
-      transaction.update(other.docRef!, {
-        followers: arrayUnion(this.docRef),
-      });
-    });
+    if (!this.hasData) await this.getData();
+    if (containsRef(this.following!, other)) return;
+    this.following!.push(other);
+    return updateDoc(this.docRef!, { following: arrayUnion(other.docRef) });
   }
 
   /** unfollowUser
    * Unfollow a user.
    * @param other: The User to unfollow
-   * @remarks both this and other's following and follower lists will be updated
+   * @remarks this following list will be updated
    */
   public async unfollowUser(other: User) {
     // If this user has data and their following array doesn't contain the other user, return
-    if (this.hasData && !containsRef(this.following!, other)) return;
-
-    // Else run the transaction, which will get the data fresh and then run the same check and return if it fails
-    return runTransaction(db, async (transaction: Transaction) => {
-      const thisSnap = await transaction.get(this.docRef!);
-      const otherSnap = await transaction.get(other.docRef!);
-
-      this.initWithDocumentData(thisSnap.data()!);
-      other.initWithDocumentData(otherSnap.data()!);
-
-      if (!containsRef(this.following!, other)) return;
-
-      // If we get here, we know that this user is following the other user
-      // Update client-side
-      removeRef(this.following!, other);
-      removeRef(other.followers!, this);
-
-      // Then update the db
-      transaction.update(this.docRef!, {
-        following: arrayRemove(other.docRef),
-      });
-      transaction.update(other.docRef!, {
-        followers: arrayRemove(this.docRef),
-      });
-    });
+    if (!this.hasData) await this.getData();
+    if (!containsRef(this.following!, other)) return;
+    removeRef(this.following!, other);
+    return updateDoc(this.docRef!, { following: arrayRemove(other.docRef) });
   }
 
   /** delete
@@ -182,12 +136,6 @@ export class User extends LazyObject {
 
     const preTasks: Promise<any>[] = [];
 
-    this.posts!.forEach((post) => {
-      console.log(post);
-      preTasks.push(post.delete());
-    });
-    this.comments!.forEach((comment) => preTasks.push(comment.delete()));
-
     if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
       preTasks.push(deleteObject(this.avatar.getStorageRef()));
 
@@ -196,32 +144,14 @@ export class User extends LazyObject {
 
     // Now, all comments and posts we've ever made have *probably* been deleted.
     // However, to be sure, we'll collect some tasks to do after the main transaction.
-    const postActions = await runTransaction(db, async (transaction) => {
+    await runTransaction(db, async (transaction) => {
       // Definitions
       const cacheDocRef = doc(db, 'caches', 'users');
 
       // Reads
-      const thisUpdate = this.updateWithTransaction(transaction);
+      await this.updateWithTransaction(transaction);
 
-      await thisUpdate;
       // Writes
-
-      const postActions: { posts: Post[]; comments: Comment[] } = {
-        posts: this.posts!,
-        comments: this.comments!,
-      };
-
-      this.followers!.forEach((follower) =>
-        transaction.update(follower.docRef!, {
-          following: arrayRemove(this.docRef!),
-        })
-      );
-      this.following!.forEach((following) =>
-        transaction.update(following.docRef!, {
-          followers: arrayRemove(this.docRef!),
-        })
-      );
-
       transaction.update(cacheDocRef, {
         allUsers: arrayRemove({
           username: this.username!,
@@ -229,17 +159,9 @@ export class User extends LazyObject {
           ref: this.docRef!,
         }),
       });
-
-      return postActions;
     });
     console.log('Main transaction done');
 
-    const postTasks: Promise<any>[] = [];
-    postActions.posts.forEach((post) => postTasks.push(post.delete()));
-    postActions.comments.forEach((comment) => postTasks.push(comment.delete()));
-
-    await Promise.all(postTasks);
-    console.log('Post-tasks done');
     await deleteDoc(this.docRef!);
     console.log('Document deleted');
     await deleteUser(auth.currentUser!);
@@ -447,6 +369,18 @@ export class User extends LazyObject {
     );
   }
 
+  /** getCommentsCursor()
+   *  get a QueryCursor for a Users's comments starting from most recent
+   */
+  public async getCommentsCursor() {
+    return new QueryCursor(
+      Comment,
+      5,
+      collection(db, 'comments'),
+      where('author', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
+
   /** setAvatar
    * Set this user's avatar.
    * @param avatar: The user's avatar
@@ -491,6 +425,7 @@ export class User extends LazyObject {
       return this.avatar!.getImageUrl();
     }
   }
+
   // ======================== Trivial Getters Below ========================
 
   /** getFollowingCursor
@@ -550,13 +485,6 @@ export class User extends LazyObject {
     return this.status!;
   }
 
-  /** getComments()
-   */
-  public async getComments() {
-    if (!this.hasData) await this.getData();
-    return this.comments!;
-  }
-
   /** getSends()
    */
   public async getSends() {
@@ -574,7 +502,6 @@ export class UserMock extends User {
     status: UserStatus,
     sends: Send[],
     following: User[],
-    followers: User[],
     avatar?: LazyStaticImage
   ) {
     super();
@@ -585,7 +512,6 @@ export class UserMock extends User {
     this.status = status;
     this.sends = sends;
     this.following = following;
-    this.followers = followers;
     this.avatar = avatar;
 
     this.hasData = true;
@@ -597,9 +523,5 @@ export class UserMock extends User {
 
   public addFollowing(following: User[]) {
     this.following = this.following?.concat(following);
-  }
-
-  public addFollowers(followers: User[]) {
-    this.followers = this.followers?.concat(followers);
   }
 }

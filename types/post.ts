@@ -6,6 +6,7 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   increment,
   orderBy,
@@ -35,7 +36,6 @@ export class Post extends LazyObject {
 
   // Filled with defaults if not present when getting data
   public likes?: User[];
-  public comments?: Comment[];
   public _isSaved?: boolean;
   public imageContent?: LazyStaticImage[];
 
@@ -52,9 +52,6 @@ export class Post extends LazyObject {
 
     this.likes = (data.likes ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
-    );
-    this.comments = (data.comments ?? []).map(
-      (ref: DocumentReference<DocumentData>) => new Comment(ref)
     );
     this._isSaved = data._isSaved ?? false;
     this.imageContent = (data.imageContent ?? []).map(
@@ -81,12 +78,6 @@ export class Post extends LazyObject {
         timestamp: serverTimestamp(),
         likes: [],
         post: this.docRef!,
-      });
-      transaction.update(author.docRef!, {
-        comments: arrayUnion(newCommentDocRef),
-      });
-      transaction.update(this.docRef!, {
-        comments: arrayUnion(newCommentDocRef),
       });
     });
   }
@@ -235,36 +226,30 @@ export class Post extends LazyObject {
 
   public async delete() {
     if (!this.docRef) return;
+    await this.getData(true);
     const size = await this.getStaticContentSizeInBytes();
-    await this.deleteStaticContent();
-    return runTransaction(db, async (transaction: Transaction) => {
-      // Reads
-      await this.updateWithTransaction(transaction);
-      await Promise.all(
-        this.comments!.map(async (cmt) =>
-          cmt.updateWithTransaction(transaction)
-        )
-      );
+    const tasks = [];
+    tasks.push(this.deleteStaticContent());
 
-      // Writes
-      if (this.forum)
-        transaction.update(this.forum!.docRef!, {
-          posts: arrayRemove(this.docRef!),
-        });
-      transaction.update(this.author!.docRef!, {
-        posts: arrayRemove(this.docRef),
-        totalPostSizeInBytes: increment(-size),
-      });
-      this.comments!.forEach((cmt) => {
-        cmt.getAuthor().then((author) =>
-          transaction.update(author.docRef!, {
-            comments: arrayRemove(cmt.docRef!),
+    // It's fine because they'd have to be read to be deleted anyway :)
+    (
+      await this.getCommentsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+    ).forEach((cmt) => tasks.push(deleteDoc(cmt?.docRef!)));
+
+    tasks.push(
+      runTransaction(db, async (transaction: Transaction) => {
+        // Reads
+        await this.updateWithTransaction(transaction);
+
+        // Writes
+        transaction
+          .update(this.author!.docRef!, {
+            totalPostSizeInBytes: increment(-size),
           })
-        );
-        transaction.delete(cmt.docRef!);
-      });
-      transaction.delete(this.docRef!);
-    });
+          .delete(this.docRef!);
+      })
+    );
+    return Promise.all(tasks);
   }
 }
 
@@ -274,7 +259,6 @@ export class PostMock extends Post {
     timestamp: Date,
     textContent: string,
     likes: User[] = [],
-    comments: Comment[] = [],
     imageContent: LazyStaticImage[] = [],
     videoContent?: LazyStaticVideo
   ) {
@@ -283,7 +267,6 @@ export class PostMock extends Post {
     this.timestamp = timestamp;
     this.textContent = textContent;
     this.likes = likes;
-    this.comments = comments;
     this.imageContent = imageContent;
     this.videoContent = videoContent;
 
@@ -292,9 +275,5 @@ export class PostMock extends Post {
 
   public addLikes(likes: User[]) {
     this.likes = this.likes?.concat(likes);
-  }
-
-  public addComments(comments: Comment[]) {
-    this.comments = this.comments?.concat(comments);
   }
 }

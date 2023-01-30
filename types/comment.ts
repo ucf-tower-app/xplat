@@ -4,6 +4,7 @@ import {
   DocumentReference,
   arrayRemove,
   arrayUnion,
+  deleteDoc,
   refEqual,
   runTransaction,
   updateDoc,
@@ -48,16 +49,8 @@ export class Comment extends LazyObject {
    * Delete this comment
    */
   public async delete() {
-    return runTransaction(db, async (transaction) => {
-      await this.updateWithTransaction(transaction);
-      transaction.update(this.post!.docRef!, {
-        comments: arrayRemove(this.docRef!),
-      });
-      transaction.update(this.author!.docRef!, {
-        comments: arrayRemove(this.docRef!),
-      });
-      transaction.delete(this.docRef!);
-    });
+    // refreshingly simple :)
+    if (this.docRef) return deleteDoc(this.docRef);
   }
 
   /** likedBy
@@ -80,7 +73,7 @@ export class Comment extends LazyObject {
     if (this.hasData) this.likes?.push(user);
   }
 
-    /** removeLike
+  /** removeLike
    * Remove a like from this comment
    */
   public async removeLike(user: User) {
@@ -134,7 +127,12 @@ export class Comment extends LazyObject {
 }
 
 export class CommentMock extends Comment {
-  constructor(author: User, timestamp: Date, textContent: string, likes: User[]) {
+  constructor(
+    author: User,
+    timestamp: Date,
+    textContent: string,
+    likes: User[]
+  ) {
     super();
     this.author = author;
     this.timestamp = timestamp;
