@@ -16,30 +16,6 @@ export enum UserStatus {
   Developer = 5,
 }
 
-export class ArrayCursor<T> {
-  public data: T[];
-  private idx: number;
-
-  constructor(data: T[]) {
-    this.data = data;
-    this.idx = 0;
-  }
-
-  public hasNext() {
-    return this.idx < this.data.length;
-  }
-
-  public pollNext() {
-    if (!this.hasNext()) return undefined;
-    return this.data[this.idx++];
-  }
-
-  public peekNext() {
-    if (!this.hasNext()) return undefined;
-    return this.data[this.idx];
-  }
-}
-
 export abstract class LazyObject {
   public docRef: DocumentReference<DocumentData> | undefined;
   public hasData: boolean;

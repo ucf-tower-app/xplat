@@ -15,6 +15,43 @@ import {
 import { db } from '../Firebase';
 import { LazyObject, Post } from './types';
 
+export interface Cursor<T> {
+  peekNext(): Promise<T | undefined>;
+  pollNext(): Promise<T>;
+  hasNext(): Promise<boolean>;
+}
+
+export class ArrayCursor<T extends LazyObject> implements Cursor<T> {
+  public data: T[];
+  private idx: number;
+
+  constructor(data: T[]) {
+    this.data = data;
+    this.idx = 0;
+  }
+
+  public async hasNext() {
+    return this.idx < this.data.length;
+  }
+
+  public async pollNext() {
+    while (this.hasNext()) {
+      const res = this.data[this.idx++];
+      await res.getData();
+      if (res.exists) return res;
+    }
+    return Promise.reject('No more data!');
+  }
+
+  public async peekNext() {
+    while (this.hasNext()) {
+      if (this.data[this.idx]) return this.data[this.idx];
+      this.idx++;
+    }
+    return undefined;
+  }
+}
+
 /** QueryCursor class. Generic on some LazyObject
  * @constructor: Takes the generic type, stride, collection ref, and list of query constraints
  * @method hasNext(): async, returns whether the cursor can return data either from memory or by querying.
@@ -22,7 +59,7 @@ import { LazyObject, Post } from './types';
  * @method pollNext(): async, returns the next result and advances the queue
  * @remarks Please don't call methods on the same object multiple times concurrently. They should block each other.
  */
-export class QueryCursor<T extends LazyObject> {
+export class QueryCursor<T extends LazyObject> implements Cursor<T> {
   private lastVisible: QueryDocumentSnapshot | undefined = undefined;
   private results: (T | undefined)[] = [];
   private idx: number = 0;
@@ -92,7 +129,7 @@ export class QueryCursor<T extends LazyObject> {
 
   public async pollNext() {
     const res = await this.peekNext();
-    if (!res) return res;
+    if (!res) return Promise.reject('No more data');
     this.idx++;
     return res;
   }
@@ -111,7 +148,7 @@ export class QueryCursor<T extends LazyObject> {
  * @method pollNext(): Same as QueryCursor
  * @remarks Please don't call methods on the same object multiple times concurrently. They should block each other.
  */
-export class PostCursorMerger {
+export class PostCursorMerger implements Cursor<Post> {
   private left?: PostCursorMerger | QueryCursor<Post>;
   private right?: PostCursorMerger | QueryCursor<Post>;
 
@@ -142,9 +179,11 @@ export class PostCursorMerger {
     return (this.next = await (await this.nextSide())?.peekNext());
   }
 
-  public async pollNext(): Promise<Post | undefined> {
+  public async pollNext(): Promise<Post> {
     this.next = undefined;
-    return (await this.nextSide())?.pollNext();
+    const nextSide = await this.nextSide();
+    if (!nextSide) return Promise.reject('No more data!');
+    return nextSide.pollNext();
   }
 
   public async hasNext(): Promise<boolean> {
