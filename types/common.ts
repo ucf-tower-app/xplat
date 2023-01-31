@@ -19,6 +19,7 @@ export enum UserStatus {
 export abstract class LazyObject {
   public docRef: DocumentReference<DocumentData> | undefined;
   public hasData: boolean;
+  public exists: boolean = true;
 
   public abstract initWithDocumentData(data: DocumentData): void;
 
@@ -28,13 +29,24 @@ export abstract class LazyObject {
       return Promise.reject('Document reference is undefined');
 
     return getDoc(this.docRef).then((docSnap) => {
-      if (!docSnap.exists()) return Promise.reject('Doc snap does not exist');
-      else this.initWithDocumentData(docSnap.data());
+      if (!docSnap.exists()) {
+        this.exists = false;
+        return Promise.reject('Document does not exist');
+      } else {
+        this.exists = true;
+        this.initWithDocumentData(docSnap.data());
+      }
     });
   }
 
   public async updateWithTransaction(transaction: Transaction) {
-    this.initWithDocumentData((await transaction.get(this.docRef!)).data()!);
+    const snap = await transaction.get(this.docRef!);
+    if (!snap.exists) {
+      this.exists = false;
+      return Promise.reject('Document does not exist');
+    }
+    this.exists = true;
+    this.initWithDocumentData(snap.data()!);
   }
 
   constructor(docRef: DocumentReference<DocumentData> | undefined = undefined) {

@@ -1,18 +1,25 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
   DocumentData,
+  DocumentReference,
   arrayRemove,
+  arrayUnion,
+  deleteDoc,
+  refEqual,
   runTransaction,
   updateDoc,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { LazyObject, Post, User } from './types';
+import { LazyObject, Post, User, containsRef } from './types';
 
 export class Comment extends LazyObject {
   public author?: User;
   public timestamp?: Date;
   public textContent?: string;
   public post?: Post;
+
+  // Filled with defaults if not present when getting data
+  public likes?: User[];
 
   public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
@@ -21,6 +28,10 @@ export class Comment extends LazyObject {
     );
     this.textContent = data.textContent;
     this.post = new Post(data.post);
+
+    this.likes = (data.likes ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
 
     this.hasData = true;
   }
@@ -38,16 +49,43 @@ export class Comment extends LazyObject {
    * Delete this comment
    */
   public async delete() {
-    return runTransaction(db, async (transaction) => {
+    // refreshingly simple :)
+    if (this.docRef) return deleteDoc(this.docRef);
+  }
+
+  /** likedBy
+   * Checks if the given user has liked this comment
+   */
+  public async likedBy(user: User) {
+    if (!this.hasData) await this.getData();
+    return containsRef(this.likes!, user);
+  }
+
+  /** addLike
+   * Add a like to this comment
+   */
+  public async addLike(user: User) {
+    if (this.hasData && (await this.likedBy(user))) return;
+    await runTransaction(db, async (transaction) => {
       await this.updateWithTransaction(transaction);
-      transaction.update(this.post!.docRef!, {
-        comments: arrayRemove(this.docRef!),
-      });
-      transaction.update(this.author!.docRef!, {
-        comments: arrayRemove(this.docRef!),
-      });
-      transaction.delete(this.docRef!);
+      transaction.update(this.docRef!, { likes: arrayUnion(user.docRef!) });
     });
+    if (this.hasData) this.likes?.push(user);
+  }
+
+  /** removeLike
+   * Remove a like from this comment
+   */
+  public async removeLike(user: User) {
+    if (this.hasData && !(await this.likedBy(user))) return;
+    await runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
+      transaction.update(this.docRef!, { likes: arrayRemove(user.docRef!) });
+    });
+    if (this.hasData)
+      this.likes = this.likes?.filter(
+        (like) => !refEqual(like.docRef!, user.docRef!)
+      );
   }
 
   // ======================== Trivial Getters Below ========================
@@ -79,14 +117,27 @@ export class Comment extends LazyObject {
     if (!this.hasData) await this.getData();
     return this.post!;
   }
+
+  /** getLikes
+   */
+  public async getLikes() {
+    if (!this.hasData) await this.getData();
+    return this.likes!;
+  }
 }
 
 export class CommentMock extends Comment {
-  constructor(author: User, timestamp: Date, textContent: string) {
+  constructor(
+    author: User,
+    timestamp: Date,
+    textContent: string,
+    likes: User[]
+  ) {
     super();
     this.author = author;
     this.timestamp = timestamp;
     this.textContent = textContent;
+    this.likes = likes;
 
     this.hasData = true;
   }

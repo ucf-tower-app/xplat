@@ -63,7 +63,6 @@ export class QueryCursor<T extends LazyObject> implements Cursor<T> {
   private lastVisible: QueryDocumentSnapshot | undefined = undefined;
   private results: (T | undefined)[] = [];
   private idx: number = 0;
-  private firstQuery: Promise<void>;
   private stride: number;
   private Tcreator: new (data: DocumentReference) => T;
 
@@ -79,15 +78,6 @@ export class QueryCursor<T extends LazyObject> implements Cursor<T> {
     this.stride = stride;
     this.collection = collection;
     this.constraints = queryConstraints;
-    const first = query(
-      this.collection,
-      ...this.constraints,
-      limit(this.stride)
-    );
-    this.firstQuery = getDocs(first).then((snaps) => {
-      this.lastVisible = snaps.docs[snaps.docs.length - 1];
-      snaps.docs.forEach(this.addSnap, this);
-    });
   }
 
   private addSnap(snap: QueryDocumentSnapshot) {
@@ -97,7 +87,19 @@ export class QueryCursor<T extends LazyObject> implements Cursor<T> {
   }
 
   private async advance() {
-    await this.firstQuery;
+    if (this.results.length === 0) {
+      const first = query(
+        this.collection,
+        ...this.constraints,
+        limit(this.stride)
+      );
+      await getDocs(first).then((snaps) => {
+        this.lastVisible = snaps.docs[snaps.docs.length - 1];
+        snaps.docs.forEach(this.addSnap, this);
+        if (snaps.docs.length < this.stride) this.results.push(undefined);
+      });
+    }
+
     if (this.idx < this.results.length) return;
     if (this.lastVisible === undefined) {
       this.results.push(undefined);
