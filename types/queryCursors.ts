@@ -19,6 +19,7 @@ export interface Cursor<T> {
   peekNext(): Promise<T | undefined>;
   pollNext(): Promise<T>;
   hasNext(): Promise<boolean>;
+  reset(): void;
 }
 
 export class ArrayCursor<T extends LazyObject> implements Cursor<T> {
@@ -27,6 +28,10 @@ export class ArrayCursor<T extends LazyObject> implements Cursor<T> {
 
   constructor(data: T[]) {
     this.data = data;
+    this.idx = 0;
+  }
+
+  public reset(): void {
     this.idx = 0;
   }
 
@@ -78,6 +83,10 @@ export class QueryCursor<T extends LazyObject> implements Cursor<T> {
     this.stride = stride;
     this.collection = collection;
     this.constraints = queryConstraints;
+  }
+
+  public reset(): void {
+    this.idx = 0;
   }
 
   private addSnap(snap: QueryDocumentSnapshot) {
@@ -164,6 +173,11 @@ export class PostCursorMerger implements Cursor<Post> {
       this.left = new PostCursorMerger(cursors.slice(0, mid));
       this.right = new PostCursorMerger(cursors.slice(mid));
     }
+  }
+
+  public reset(): void {
+    if (this.left) this.left.reset();
+    if (this.right) this.right.reset();
   }
 
   private async nextSide() {
