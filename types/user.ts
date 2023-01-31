@@ -408,13 +408,28 @@ export class User extends LazyObject {
     if (grade) return new RouteClassifier(grade, type);
   }
 
-  /** getTotalSends
+  /** getTotalSendsByType
    * Get the number of sends for a given type
    * @param type: The query type
    */
-  public async getTotalSends(type: RouteType) {
+  public async getTotalSendsByType(type: RouteType) {
     if (!this.hasData) await this.getData();
     return this.totalSends!.get(type) ?? 0;
+  }
+
+  /** getTotalSends
+   * Get the number of sends for all types
+   * @param type: The query type
+   */
+  public async getTotalSends() {
+    if (!this.hasData) await this.getData();
+    return (
+      (await this.getTotalSendsByType(RouteType.Boulder)) +
+      (await this.getTotalSendsByType(RouteType.Toprope)) +
+      (await this.getTotalSendsByType(RouteType.Competition)) +
+      (await this.getTotalSendsByType(RouteType.Traverse)) +
+      (await this.getTotalSendsByType(RouteType.Leadclimb))
+    );
   }
 
   /** getPostsCursor
