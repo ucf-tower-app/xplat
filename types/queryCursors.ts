@@ -20,6 +20,7 @@ export interface Cursor<T> {
   pollNext(): Promise<T>;
   hasNext(): Promise<boolean>;
   reset(): void;
+  getStoredResults(): T[];
 }
 
 export class ArrayCursor<T extends LazyObject> implements Cursor<T> {
@@ -29,6 +30,9 @@ export class ArrayCursor<T extends LazyObject> implements Cursor<T> {
   constructor(data: T[]) {
     this.data = data;
     this.idx = 0;
+  }
+  public getStoredResults(): T[] {
+    return this.data.filter((x, curIdx) => x && curIdx < this.idx);
   }
 
   public reset(): void {
@@ -83,6 +87,10 @@ export class QueryCursor<T extends LazyObject> implements Cursor<T> {
     this.stride = stride;
     this.collection = collection;
     this.constraints = queryConstraints;
+  }
+
+  public getStoredResults(): T[] {
+    return this.results.filter((x, curIdx) => x && curIdx < this.idx) as T[];
   }
 
   public reset(): void {
@@ -173,6 +181,14 @@ export class PostCursorMerger implements Cursor<Post> {
       this.left = new PostCursorMerger(cursors.slice(0, mid));
       this.right = new PostCursorMerger(cursors.slice(mid));
     }
+  }
+  public getStoredResults(): Post[] {
+    const res: Post[] = [];
+    if (this.left) this.left.getStoredResults().forEach((p) => res.push(p));
+    if (this.right) this.right.getStoredResults().forEach((p) => res.push(p));
+
+    res.sort((a, b) => (a.timestamp! < b.timestamp! ? -1 : 1));
+    return res;
   }
 
   public reset(): void {
