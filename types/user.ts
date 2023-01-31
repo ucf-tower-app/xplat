@@ -380,6 +380,7 @@ export class User extends LazyObject {
       where('author', '==', this.docRef!),
       orderBy('timestamp', 'desc')
     );
+  }
 
   /** setAvatar
    * Set this user's avatar.
