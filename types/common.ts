@@ -21,6 +21,18 @@ export abstract class LazyObject {
   public hasData: boolean;
   public exists: boolean = true;
 
+  public _idMock: string | undefined;
+
+  public getId() {
+    if (this.docRef !== undefined) {
+      return this.docRef.id
+    } else if (this._idMock !== undefined) {
+      return this._idMock
+    }
+
+    throw "Cannot fetch ID from LazyObject with no docRef or idMock"; 
+  }
+
   public abstract initWithDocumentData(data: DocumentData): void;
 
   public async getData(forceUpdate = false): Promise<void> {
