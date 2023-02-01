@@ -15,6 +15,52 @@ import {
 import { db } from '../Firebase';
 import { LazyObject, Post } from './types';
 
+export interface Cursor<T> {
+  peekNext(): Promise<T | undefined>;
+  pollNext(): Promise<T>;
+  hasNext(): Promise<boolean>;
+  reset(): void;
+  getStoredResults(): T[];
+}
+
+export class ArrayCursor<T extends LazyObject> implements Cursor<T> {
+  public data: T[];
+  private idx: number;
+
+  constructor(data: T[]) {
+    this.data = data;
+    this.idx = 0;
+  }
+  public getStoredResults(): T[] {
+    return this.data.filter((x, curIdx) => x && curIdx < this.idx);
+  }
+
+  public reset(): void {
+    this.idx = 0;
+  }
+
+  public async hasNext() {
+    return this.idx < this.data.length;
+  }
+
+  public async pollNext() {
+    while (this.hasNext()) {
+      const res = this.data[this.idx++];
+      await res.getData();
+      if (res.exists) return res;
+    }
+    return Promise.reject('No more data!');
+  }
+
+  public async peekNext() {
+    while (this.hasNext()) {
+      if (this.data[this.idx]) return this.data[this.idx];
+      this.idx++;
+    }
+    return undefined;
+  }
+}
+
 /** QueryCursor class. Generic on some LazyObject
  * @constructor: Takes the generic type, stride, collection ref, and list of query constraints
  * @method hasNext(): async, returns whether the cursor can return data either from memory or by querying.
@@ -22,11 +68,10 @@ import { LazyObject, Post } from './types';
  * @method pollNext(): async, returns the next result and advances the queue
  * @remarks Please don't call methods on the same object multiple times concurrently. They should block each other.
  */
-export class QueryCursor<T extends LazyObject> {
+export class QueryCursor<T extends LazyObject> implements Cursor<T> {
   private lastVisible: QueryDocumentSnapshot | undefined = undefined;
   private results: (T | undefined)[] = [];
   private idx: number = 0;
-  private firstQuery: Promise<void>;
   private stride: number;
   private Tcreator: new (data: DocumentReference) => T;
 
@@ -42,15 +87,14 @@ export class QueryCursor<T extends LazyObject> {
     this.stride = stride;
     this.collection = collection;
     this.constraints = queryConstraints;
-    const first = query(
-      this.collection,
-      ...this.constraints,
-      limit(this.stride)
-    );
-    this.firstQuery = getDocs(first).then((snaps) => {
-      this.lastVisible = snaps.docs[snaps.docs.length - 1];
-      snaps.docs.forEach(this.addSnap, this);
-    });
+  }
+
+  public getStoredResults(): T[] {
+    return this.results.filter((x, curIdx) => x && curIdx < this.idx) as T[];
+  }
+
+  public reset(): void {
+    this.idx = 0;
   }
 
   private addSnap(snap: QueryDocumentSnapshot) {
@@ -60,7 +104,19 @@ export class QueryCursor<T extends LazyObject> {
   }
 
   private async advance() {
-    await this.firstQuery;
+    if (this.results.length === 0) {
+      const first = query(
+        this.collection,
+        ...this.constraints,
+        limit(this.stride)
+      );
+      await getDocs(first).then((snaps) => {
+        this.lastVisible = snaps.docs[snaps.docs.length - 1];
+        snaps.docs.forEach(this.addSnap, this);
+        if (snaps.docs.length < this.stride) this.results.push(undefined);
+      });
+    }
+
     if (this.idx < this.results.length) return;
     if (this.lastVisible === undefined) {
       this.results.push(undefined);
@@ -92,7 +148,7 @@ export class QueryCursor<T extends LazyObject> {
 
   public async pollNext() {
     const res = await this.peekNext();
-    if (!res) return res;
+    if (!res) return Promise.reject('No more data');
     this.idx++;
     return res;
   }
@@ -111,7 +167,7 @@ export class QueryCursor<T extends LazyObject> {
  * @method pollNext(): Same as QueryCursor
  * @remarks Please don't call methods on the same object multiple times concurrently. They should block each other.
  */
-export class PostCursorMerger {
+export class PostCursorMerger implements Cursor<Post> {
   private left?: PostCursorMerger | QueryCursor<Post>;
   private right?: PostCursorMerger | QueryCursor<Post>;
 
@@ -125,6 +181,19 @@ export class PostCursorMerger {
       this.left = new PostCursorMerger(cursors.slice(0, mid));
       this.right = new PostCursorMerger(cursors.slice(mid));
     }
+  }
+  public getStoredResults(): Post[] {
+    const res: Post[] = [];
+    if (this.left) this.left.getStoredResults().forEach((p) => res.push(p));
+    if (this.right) this.right.getStoredResults().forEach((p) => res.push(p));
+
+    res.sort((a, b) => (a.timestamp! > b.timestamp! ? -1 : 1));
+    return res;
+  }
+
+  public reset(): void {
+    if (this.left) this.left.reset();
+    if (this.right) this.right.reset();
   }
 
   private async nextSide() {
@@ -142,9 +211,11 @@ export class PostCursorMerger {
     return (this.next = await (await this.nextSide())?.peekNext());
   }
 
-  public async pollNext(): Promise<Post | undefined> {
+  public async pollNext(): Promise<Post> {
     this.next = undefined;
-    return (await this.nextSide())?.pollNext();
+    const nextSide = await this.nextSide();
+    if (!nextSide) return Promise.reject('No more data!');
+    return nextSide.pollNext();
   }
 
   public async hasNext(): Promise<boolean> {
