@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import {
   EmailAuthProvider,
   deleteUser,
@@ -531,6 +533,7 @@ export class UserMock extends User {
     this.avatar = avatar;
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 
   public addSends(sends: Send[]) {
