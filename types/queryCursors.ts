@@ -187,7 +187,7 @@ export class PostCursorMerger implements Cursor<Post> {
     if (this.left) this.left.getStoredResults().forEach((p) => res.push(p));
     if (this.right) this.right.getStoredResults().forEach((p) => res.push(p));
 
-    res.sort((a, b) => (a.timestamp! < b.timestamp! ? -1 : 1));
+    res.sort((a, b) => (a.timestamp! > b.timestamp! ? -1 : 1));
     return res;
   }
 
