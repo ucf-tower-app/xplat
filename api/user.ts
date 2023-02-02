@@ -47,6 +47,14 @@ export function validDisplayname(displayname: string): boolean {
   return displayname.match('^[a-zA-Z][a-zA-Z -]{3,28}[a-zA-Z]$') !== null;
 }
 
+/** validBio
+ * Check whether a bio is lequal 200 characters
+ * @param bio
+ */
+export function validBio(bio: string): boolean {
+  return bio.length <= 200;
+}
+
 /** createUser
  * Create an auth user and a firebase document for that user.
  * @param email: The new user's email
