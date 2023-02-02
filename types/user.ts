@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
 import {
   EmailAuthProvider,
   deleteUser,
   reauthenticateWithCredential,
+  updatePassword,
 } from 'firebase/auth';
 import {
   DocumentData,
@@ -26,6 +25,8 @@ import {
   ref,
   uploadBytes,
 } from 'firebase/storage';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_AVATAR_PATH, auth, db, storage } from '../Firebase';
 import { isKnightsEmail, validDisplayname } from '../api';
 import {
@@ -305,6 +306,20 @@ export class User extends LazyObject {
       return Promise.reject(
         'Cannot perform this action on behalf of someone else.'
       );
+  }
+
+  /** changePassword
+   * Change password
+   * @param oldPassword
+   * @param newPassword
+   */
+  public async changePassword(oldPassword: string, newPassword: string) {
+    await this.checkIfSignedIn();
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, oldPassword)
+    );
+    return updatePassword(auth.currentUser!, newPassword);
   }
 
   /** getRecentSendsCursor
