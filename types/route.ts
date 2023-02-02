@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
 import {
   DocumentData,
   DocumentReference,
@@ -19,9 +17,11 @@ import {
   where,
 } from 'firebase/firestore';
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { db, storage } from '../Firebase';
 import { getRouteByName } from '../api';
-import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from './types';
+import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from '../types';
 
 export enum RouteType {
   Boulder = 'Boulder',

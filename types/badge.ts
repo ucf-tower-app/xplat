@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { DocumentData } from 'firebase/firestore';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { DocumentData } from 'firebase/firestore';
-import { LazyObject } from './types';
+import { LazyObject } from '../types';
 
 export class Badge extends LazyObject {
   public name: string | undefined;

@@ -1,6 +1,6 @@
 import { doc } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { Forum } from '../types/types';
+import { Forum } from '../types';
 
 /** getForumById
  * Returns a Firebase Forum corresponding to the document ID provided

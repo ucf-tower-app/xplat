@@ -13,7 +13,6 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
-import { SubstringMatcher } from '../types/substringMatcher';
 import {
   QueryCursor,
   Route,
@@ -23,7 +22,8 @@ import {
   RouteType,
   Tag,
   User,
-} from '../types/types';
+} from '../types';
+import { SubstringMatcher } from '../types/substringMatcher';
 
 /** getRouteById
  * Returns a Firebase Route corresponding to the document ID provided
