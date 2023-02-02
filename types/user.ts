@@ -451,7 +451,7 @@ export class User extends LazyObject {
           }),
         })
         .update(this.docRef!, { displayName: displayName });
-    }).then((this.displayName = displayName));
+    }).then(() => (this.displayName = displayName));
   }
 
   /** deleteAvatar
