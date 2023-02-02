@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { DocumentData } from 'firebase/firestore';
 import { LazyObject } from './types';
 
@@ -37,5 +39,6 @@ export class TagMock extends Tag {
     this.description = description;
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 }
