@@ -27,7 +27,7 @@ import {
   uploadBytes,
 } from 'firebase/storage';
 import { DEFAULT_AVATAR_PATH, auth, db, storage } from '../Firebase';
-import { isKnightsEmail } from '../api';
+import { isKnightsEmail, validDisplayname } from '../api';
 import {
   ArrayCursor,
   Comment,
@@ -408,7 +408,6 @@ export class User extends LazyObject {
   public async setAvatar(avatar: Blob) {
     await this.checkIfSignedIn();
 
-    console.log(avatar.size);
     if (avatar.size > 100_000) return Promise.reject('Avatar too large!');
 
     if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
@@ -422,6 +421,39 @@ export class User extends LazyObject {
         avatar: 'avatars/' + this.docRef!.id,
       });
     });
+  }
+
+  public async setBio(bio: string) {
+    await this.checkIfSignedIn();
+    return updateDoc(this.docRef!, { bio: bio }).then(() => (this.bio = bio));
+  }
+
+  public async setDisplayName(displayName: string) {
+    await this.checkIfSignedIn();
+    if (this.displayName! === displayName) return;
+    if (!validDisplayname(displayName))
+      return Promise.reject('Invalid Display Name!');
+
+    return runTransaction(db, async (transaction) => {
+      const cacheDocRef = doc(db, 'caches', 'users');
+
+      transaction
+        .update(cacheDocRef, {
+          allUsers: arrayRemove({
+            username: this.username!,
+            displayName: this.displayName!,
+            ref: this.docRef!,
+          }),
+        })
+        .update(cacheDocRef, {
+          allUsers: arrayUnion({
+            username: this.username!,
+            displayName: displayName,
+            ref: this.docRef!,
+          }),
+        })
+        .update(this.docRef!, { displayName: displayName });
+    }).then(() => (this.displayName = displayName));
   }
 
   /** deleteAvatar
