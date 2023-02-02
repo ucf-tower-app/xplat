@@ -13,7 +13,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { LazyObject, Post } from './types';
+import { LazyObject, Post } from '../types';
 
 export interface Cursor<T> {
   peekNext(): Promise<T | undefined>;

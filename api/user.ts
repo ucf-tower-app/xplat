@@ -20,7 +20,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
-import { SubstringMatcher, User, UserStatus } from '../types/types';
+import { SubstringMatcher, User, UserStatus } from '../types';
 
 /** isKnightsEmail
  * Check if an email is a knights email

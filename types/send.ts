@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { DocumentData } from 'firebase/firestore';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { DocumentData } from 'firebase/firestore';
-import { LazyObject, Route, RouteClassifier, User } from './types';
+import { LazyObject, Route, RouteClassifier, User } from '../types';
 
 export class Send extends LazyObject {
   public user?: User;

@@ -1,6 +1,6 @@
 import { doc } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { Send } from '../types/types';
+import { Send } from '../types';
 
 /** getSendById
  * Returns a Firebase Send corresponding to the document ID provided

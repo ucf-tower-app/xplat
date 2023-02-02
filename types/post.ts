@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
 import {
   DocumentData,
   DocumentReference,
@@ -19,6 +17,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { deleteObject, getMetadata } from 'firebase/storage';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
 import {
   Comment,
@@ -28,7 +28,7 @@ import {
   LazyStaticVideo,
   QueryCursor,
   User,
-} from './types';
+} from '../types';
 
 export class Post extends LazyObject {
   // Expected and required when getting data

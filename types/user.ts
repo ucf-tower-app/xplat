@@ -42,7 +42,7 @@ import {
   UserStatus,
   containsRef,
   removeRef,
-} from './types';
+} from '../types';
 
 export class User extends LazyObject {
   // Expected and required when getting data
