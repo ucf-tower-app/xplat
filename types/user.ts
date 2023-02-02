@@ -71,7 +71,7 @@ export class User extends LazyObject {
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
 
-    this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
+    this.avatar = new LazyStaticImage(data.avatar ?? DEFAULT_AVATAR_PATH);
 
     this.totalPostSizeInBytes = data.totalPostSizeInBytes ?? 0;
 
