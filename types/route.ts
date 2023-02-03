@@ -378,6 +378,35 @@ export class Route extends LazyObject {
     );
   }
 
+  /** getStarRating
+   * @returns the average star rating of the route OR undefined if there are no ratings
+   */
+  public async getStarRating() {
+    if (!this.hasData) await this.getData();
+    if (this.totalStars === undefined ||
+        this.numRatings === undefined ||
+        this.numRatings === 0) return undefined;
+
+    return this.totalStars! / this.numRatings!;
+  }
+
+  /** getNumRatings
+   * @returns the total number of ratings the route has received
+   */
+  public async getNumRatings() {
+    if (!this.hasData) await this.getData();
+    return this.numRatings!;
+  }
+
+  /** getTotalStars
+   * @returns the total number of stars the route has received
+   * @remarks This is NOT the average star rating
+   */
+  public async getTotalStars() {
+    if (!this.hasData) await this.getData();
+    return this.totalStars!;
+  }
+
   /** getTech
    */
   public async getTech() {
