@@ -2,12 +2,19 @@
 import {
   DocumentData,
   DocumentReference,
+  Transaction,
+  collection,
+  doc,
+  getDocs,
+  query,
   arrayRemove,
   arrayUnion,
   deleteDoc,
   refEqual,
   runTransaction,
+  serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { db } from '../Firebase';
 import { LazyObject, Post, User, containsRef } from './types';
@@ -20,6 +27,7 @@ export class Comment extends LazyObject {
 
   // Filled with defaults if not present when getting data
   public likes?: User[];
+  public reports?: User[];
 
   public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
@@ -32,8 +40,65 @@ export class Comment extends LazyObject {
     this.likes = (data.likes ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
+    this.reports = (data.reports ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
 
     this.hasData = true;
+  }
+
+  /** addReport
+   * Add this user's report to this content
+   * @param reporter: the user reporting this content
+   */
+  public async addReport(reporter: User) {
+    if (this.hasData && (await this.reportedBy(reporter))) return;
+
+    // update client side
+    if (this.hasData) this.reports?.push(reporter);
+
+    // TODO auto-moderation after 3 reports, hides this content by setting a bool. Frontend filters out?
+
+    // update server side
+    const newReportDocRef = doc(collection(db, 'reports'));
+
+    return runTransaction(db, async (transaction: Transaction) => {
+      transaction.set(newReportDocRef, {
+        reporter: reporter.docRef!,
+        reported: this.getAuthor(),
+        timestamp: serverTimestamp(),
+        content: this.docRef!,
+      });
+    });
+  }
+
+  /** removeReport
+   * Remove this user's report of this content
+   * @param reporter: the user reporting this content
+   */
+  public async removeReport(reporter: User) {
+    if (this.hasData && (await !this.reportedBy(reporter))) return;
+
+    // update client side
+    if (this.hasData)
+      this.reports = this.reports?.filter(
+        (report) => !refEqual(report.docRef!, reporter.docRef!)
+      );
+
+    // TODO unhide if less than 3 reports now (undo auto-moderation)
+
+    // update server side
+    const q = await getDocs(
+      query(
+      collection(db, 'reports'),
+      where('reporter', '==', reporter.docRef!),
+      where('content', '==', this.docRef!)
+      )
+    );
+    const reportDocRef = q.docs[0].ref;
+    return runTransaction(db, async (transaction: Transaction) => {
+      transaction.delete(reportDocRef);
+    });
   }
 
   /** edit
@@ -51,6 +116,14 @@ export class Comment extends LazyObject {
   public async delete() {
     // refreshingly simple :)
     if (this.docRef) return deleteDoc(this.docRef);
+  }
+
+  /** reportedBy
+   * Checks if the given user has reported this comment
+   */
+  public async reportedBy(user: User) {
+    if (!this.hasData) await this.getData();
+    return containsRef(this.reports!, user);
   }
 
   /** likedBy
@@ -131,13 +204,15 @@ export class CommentMock extends Comment {
     author: User,
     timestamp: Date,
     textContent: string,
-    likes: User[]
+    likes: User[],
+    reports: User[]
   ) {
     super();
     this.author = author;
     this.timestamp = timestamp;
     this.textContent = textContent;
     this.likes = likes;
+    this.reports = reports;
 
     this.hasData = true;
   }
