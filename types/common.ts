@@ -42,6 +42,8 @@ export abstract class LazyObject {
   public abstract initWithDocumentData(data: DocumentData): void;
 
   public async getData(forceUpdate = false): Promise<void> {
+    if (this._idMock !== undefined) return; // No data for mocks
+
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');
 

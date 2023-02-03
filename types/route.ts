@@ -223,7 +223,6 @@ export class Route extends LazyObject {
       )
     );
     if (q.size === 0) return undefined;
-    console.log(q.docs);
     const res = new Send(q.docs[0].ref);
     res.initWithDocumentData(q.docs[0].data());
     return res;
@@ -239,7 +238,6 @@ export class Route extends LazyObject {
   public async FUCKINSENDIT(sender: User, rating: number | undefined) {
     const already = await this.getSendByUser(sender);
     if (already !== undefined) {
-      console.log('Already sent it');
       return already;
     }
     const newSendDocRef = doc(collection(db, 'sends'));
