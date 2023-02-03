@@ -48,7 +48,6 @@ export async function getRouteByName(name: string) {
     query(collection(db, 'routes'), where('name', '==', name), limit(1))
   );
   if (q.size === 0) return undefined;
-  console.log(q.docs);
   const res = new Route(q.docs[0].ref);
   res.initWithDocumentData(q.docs[0].data());
   return res;

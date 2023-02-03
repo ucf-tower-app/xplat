@@ -135,7 +135,6 @@ export async function getUserByUsername(username: string) {
     query(collection(db, 'users'), where('username', '==', username), limit(1))
   );
   if (q.size === 0) return undefined;
-  console.log(q.docs);
   const res = new User(q.docs[0].ref);
   res.initWithDocumentData(q.docs[0].data());
   return res;
@@ -233,6 +232,5 @@ export async function getUserSubstringMatcher() {
 //         };
 //     })
 //     .filter((obj: any | undefined) => obj !== undefined);
-//   console.log(newMap);
 //   return setDoc(doc(db, 'caches', 'users'), { allUsers: newMap });
 // }
