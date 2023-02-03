@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 
 export enum UserStatus {
+  Banned = -1,
   Unverified = 0,
   Verified = 1,
   Approved = 2,
