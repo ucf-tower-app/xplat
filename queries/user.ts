@@ -16,24 +16,17 @@ export function getIQParams_UserPosts(userDocRefId: string) {
   return {
     queryKey: ['posts', userDocRefId],
     queryFn: async ({ pageParam = undefined }) => {
-      if (pageParam) {
-        const first = query(
+      return getDocs(
+        query(
           collection(db, 'posts'),
-          where('author', '==', doc(db, 'users', userDocRefId)),
-          orderBy('timestamp', 'desc'),
-          startAfter(pageParam),
-          limit(STRIDE)
-        );
-        return getDocs(first).then((snap) => snap.docs);
-      } else {
-        const first = query(
-          collection(db, 'posts'),
-          where('author', '==', doc(db, 'users', userDocRefId)),
-          orderBy('timestamp', 'desc'),
-          limit(STRIDE)
-        );
-        return getDocs(first).then((snap) => snap.docs);
-      }
+          ...[
+            where('author', '==', doc(db, 'users', userDocRefId)),
+            orderBy('timestamp', 'desc'),
+            ...(pageParam !== undefined ? [startAfter(pageParam)] : []),
+            limit(STRIDE),
+          ]
+        )
+      ).then((snap) => snap.docs);
     },
     getNextPageParam: (lastPage: any) => {
       if (lastPage.length < STRIDE) return undefined;
