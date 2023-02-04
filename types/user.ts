@@ -59,6 +59,7 @@ export class User extends LazyObject {
   public totalPostSizeInBytes?: number;
   public totalSends?: Map<RouteType, number>;
   public bestSends?: Map<RouteType, number>;
+  public noSpoilers?: boolean;
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -84,6 +85,7 @@ export class User extends LazyObject {
     this.bestSends = new Map(
       Object.entries(data.bestSends ?? {}).map((a) => a as [RouteType, number])
     );
+    this.noSpoilers = data.noSpoilers ?? false;
 
     this.hasData = true;
   }
@@ -491,7 +493,28 @@ export class User extends LazyObject {
     }
   }
 
+  /** toggleNoSpoilers
+   * Toggle whether or not the user wants spoilers.
+   * @remarks use getNoSpoilers to get the current value
+   * @throws if this is not the signed in user
+   */
+  public async toggleNoSpoilers() {
+    await this.checkIfSignedIn();
+
+    return updateDoc(this.docRef!, {
+      noSpoilers: !(await this.getNoSpoilers()),
+    }).then(() => (this.noSpoilers = !(this.noSpoilers!)));
+  }
+
   // ======================== Trivial Getters Below ========================
+
+  /** getNoSpoilers
+   * @returns true if the user doesn't want spoilers
+   */
+  public async getNoSpoilers() {
+    if (!this.hasData) await this.getData();
+    return this.noSpoilers!;
+  }
 
   /** getFollowingCursor
    * get an ArrayCursor for a User's following
@@ -567,7 +590,8 @@ export class UserMock extends User {
     status: UserStatus,
     sends: Send[],
     following: User[],
-    avatar?: LazyStaticImage
+    avatar?: LazyStaticImage,
+    noSpoilers?: boolean
   ) {
     super();
     this.username = username;
@@ -578,6 +602,7 @@ export class UserMock extends User {
     this.sends = sends;
     this.following = following;
     this.avatar = avatar;
+    this.noSpoilers = noSpoilers;
 
     this.hasData = true;
     this._idMock = uuidv4();
