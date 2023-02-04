@@ -8,14 +8,18 @@ import {
   DocumentData,
   DocumentReference,
   Transaction,
+  getDocs,
+  query,
   arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
   doc,
   orderBy,
+  refEqual,
   runTransaction,
   updateDoc,
+  serverTimestamp,
   where,
 } from 'firebase/firestore';
 import {
@@ -83,6 +87,70 @@ export class User extends LazyObject {
     );
 
     this.hasData = true;
+  }
+
+  /** addReport
+   * Add this user's report to specified content
+   * @param content: the post or comment to be reported
+   */
+  public async addReport(content: Post | Comment) {
+    if (!content.hasData) await content.getData();
+
+    // if already reported, return
+    if (await this.alreadyReported(content)) return;
+
+    // update client side
+    content.reports?.push(this);
+
+    // update server side
+    const newReportDocRef = doc(collection(db, 'reports'));
+
+    return runTransaction(db, async (transaction: Transaction) => {
+      transaction.set(newReportDocRef, {
+        reporter: this.docRef!,
+        reported: content.getAuthor(),
+        timestamp: serverTimestamp(),
+        content: content.docRef!,
+      });
+    });
+  }
+
+  /** removeReport
+   * Remove this user's report of specified content
+   * @param content: the post or comment to be unreported
+   */
+  public async removeReport(content: Post | Comment) {
+    if (!content.hasData) await content.getData();
+
+    // if not reported, return
+    if (await !this.alreadyReported(content)) return;
+
+    // update client side
+    content.reports = content.reports?.filter(
+      (report) => !refEqual(report.docRef!, this.docRef!)
+    );
+
+    // update server side
+    const q = await getDocs(
+      query(
+      collection(db, 'reports'),
+      where('reporter', '==', this.docRef!),
+      where('content', '==', content.docRef!)
+      )
+    );
+    const reportDocRef = q.docs[0].ref;
+    return runTransaction(db, async (transaction: Transaction) => {
+      transaction.delete(reportDocRef);
+    });
+  }
+
+  /** alreadyReported
+  * Checks if this  user has already reported the specified content
+  * @returns true if this user has already reported the content, false otherwise
+  */
+  public async alreadyReported(content: Post | Comment) {
+    if (!content.hasData) await content.getData();
+    return containsRef(content.reports!, this);
   }
 
   /** followUser
