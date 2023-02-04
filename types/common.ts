@@ -40,6 +40,10 @@ export abstract class LazyObject {
     throw 'Cannot fetch ID from LazyObject with no docRef or idMock';
   }
 
+  public isMock() {
+    return this.docRef === undefined;
+  }
+
   public abstract initWithDocumentData(data: DocumentData): void;
 
   public async getData(forceUpdate = false): Promise<void> {
