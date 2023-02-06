@@ -85,7 +85,7 @@ export class User extends LazyObject {
     this.bestSends = new Map(
       Object.entries(data.bestSends ?? {}).map((a) => a as [RouteType, number])
     );
-    this.noSpoilers = data.noSpoilers ?? false;
+    this.noSpoilers = data.noSpoilers ?? true;
 
     this.hasData = true;
   }
