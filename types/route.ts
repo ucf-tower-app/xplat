@@ -407,16 +407,16 @@ export class Route extends LazyObject {
     return this.totalStars!;
   }
 
-  /** hasTech
+  /** hasNaturalRules
    */
-  public async hasTech() {
+  public async hasNaturalRules() {
     if (!this.hasData) await this.getData();
-    return this.tech !== undefined;
+    return this.naturalRules !== undefined;
   }
 
-  /** getTech
+  /** getNaturalRules
    */
-  public async getTech() {
+  public async getNaturalRules() {
     if (!this.hasData) await this.getData();
     return this.naturalRules!;
   }
