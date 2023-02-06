@@ -669,7 +669,7 @@ export class UserMock extends User {
     sends: Send[],
     following: User[],
     avatar?: LazyStaticImage,
-    reports?: User[]
+    reports?: User[],
     noSpoilers?: boolean
   ) {
     super();
