@@ -29,7 +29,7 @@ import {
   QueryCursor,
   User,
   containsRef,
-} from './types';
+} from '../types';
 
 export class Post extends LazyObject {
   // Expected and required when getting data
