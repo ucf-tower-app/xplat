@@ -189,7 +189,7 @@ export const startWaitForVerificationPoll = (
   }
 };
 
-interface UserSearchResult {
+export interface UserSearchResult {
   username: string;
   displayName: string;
   user: User;
