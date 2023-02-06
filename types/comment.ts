@@ -22,6 +22,7 @@ export class Comment extends LazyObject {
 
   // Filled with defaults if not present when getting data
   public likes?: User[];
+  public reports?: User[];
 
   public initWithDocumentData(data: DocumentData) {
     this.author = new User(data.author);
@@ -32,6 +33,9 @@ export class Comment extends LazyObject {
     this.post = new Post(data.post);
 
     this.likes = (data.likes ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.reports = (data.reports ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
 
@@ -53,6 +57,15 @@ export class Comment extends LazyObject {
   public async delete() {
     // refreshingly simple :)
     if (this.docRef) return deleteDoc(this.docRef);
+  }
+
+  /** checkShouldBeHidden
+  * Checks if this content should be hidden (if over 3 of reports)
+  * @returns true if this content should be hidden, false if not
+  */
+  public async checkShouldBeHidden() {
+    if (!this.hasData) await this.getData();
+    return this.reports!.length >= 3;
   }
 
   /** likedBy
@@ -133,13 +146,15 @@ export class CommentMock extends Comment {
     author: User,
     timestamp: Date,
     textContent: string,
-    likes: User[]
+    likes: User[],
+    reports: User[]
   ) {
     super();
     this.author = author;
     this.timestamp = timestamp;
     this.textContent = textContent;
     this.likes = likes;
+    this.reports = reports;
 
     this.hasData = true;
     this._idMock = uuidv4();

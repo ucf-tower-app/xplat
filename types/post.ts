@@ -28,6 +28,7 @@ import {
   LazyStaticVideo,
   QueryCursor,
   User,
+  containsRef,
 } from '../types';
 
 export class Post extends LazyObject {
@@ -38,6 +39,7 @@ export class Post extends LazyObject {
 
   // Filled with defaults if not present when getting data
   public likes?: User[];
+  public reports?: User[];
   public _isSaved?: boolean;
   public imageContent?: LazyStaticImage[];
 
@@ -53,6 +55,9 @@ export class Post extends LazyObject {
     this.textContent = data.textContent;
 
     this.likes = (data.likes ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.reports = (data.reports ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
     this._isSaved = data._isSaved ?? false;
@@ -79,6 +84,7 @@ export class Post extends LazyObject {
         textContent: textContent,
         timestamp: serverTimestamp(),
         likes: [],
+        reports: [],
         post: this.docRef!,
       });
     });
@@ -116,10 +122,18 @@ export class Post extends LazyObject {
     );
   }
 
+  /** checkShouldBeHidden
+   * Checks if this content should be hidden (if over 3 of reports)
+   * @returns true if this content should be hidden, false if not
+   */
+  public async checkShouldBeHidden() {
+    if (!this.hasData) await this.getData();
+    return this.reports!.length >= 3;
+  }
+
   public async likedBy(user: User) {
-    return this.getLikes().then((likes) =>
-      likes.some((like) => refEqual(like.docRef!, user.docRef!))
-    );
+    if (!this.hasData) await this.getData();
+    return containsRef(this.likes!, user);
   }
 
   public async getAuthor() {
@@ -261,6 +275,7 @@ export class PostMock extends Post {
     timestamp: Date,
     textContent: string,
     likes: User[] = [],
+    reports: User[] = [],
     imageContent: LazyStaticImage[] = [],
     videoContent?: LazyStaticVideo
   ) {
@@ -269,6 +284,7 @@ export class PostMock extends Post {
     this.timestamp = timestamp;
     this.textContent = textContent;
     this.likes = likes;
+    this.reports = reports;
     this.imageContent = imageContent;
     this.videoContent = videoContent;
 
