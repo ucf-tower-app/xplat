@@ -60,6 +60,7 @@ export class User extends LazyObject {
   public totalPostSizeInBytes?: number;
   public totalSends?: Map<RouteType, number>;
   public bestSends?: Map<RouteType, number>;
+  public reports?: User[];
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -85,6 +86,9 @@ export class User extends LazyObject {
     this.bestSends = new Map(
       Object.entries(data.bestSends ?? {}).map((a) => a as [RouteType, number])
     );
+    this.reports = (data.reports ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
 
     this.hasData = true;
   }
@@ -93,7 +97,7 @@ export class User extends LazyObject {
    * Add this user's report to specified content
    * @param content: the post or comment to be reported
    */
-  public async addReport(content: Post | Comment) {
+  public async addReport(content: Post | Comment | User) {
     if (!content.hasData) await content.getData();
 
     // if already reported, return
@@ -108,9 +112,12 @@ export class User extends LazyObject {
     return runTransaction(db, async (transaction: Transaction) => {
       transaction.set(newReportDocRef, {
         reporter: this.docRef!,
-        reported: content.getAuthor(),
+        reported: (content instanceof User ? content.getUsername() : content.getAuthor()),
         timestamp: serverTimestamp(),
         content: content.docRef!,
+      });
+      transaction.update(content.docRef!, {
+        reports: arrayUnion(this.docRef!),
       });
     });
   }
@@ -141,6 +148,9 @@ export class User extends LazyObject {
     const reportDocRef = q.docs[0].ref;
     return runTransaction(db, async (transaction: Transaction) => {
       transaction.delete(reportDocRef);
+      transaction.update(content.docRef!, {
+        reports: arrayRemove(this.docRef!),
+      });
     });
   }
 
@@ -148,7 +158,7 @@ export class User extends LazyObject {
   * Checks if this  user has already reported the specified content
   * @returns true if this user has already reported the content, false otherwise
   */
-  public async alreadyReported(content: Post | Comment) {
+  public async alreadyReported(content: Post | Comment | User) {
     if (!content.hasData) await content.getData();
     return containsRef(content.reports!, this);
   }
@@ -448,6 +458,7 @@ export class User extends LazyObject {
       where('author', '==', this.docRef!),
       orderBy('timestamp', 'desc')
     );
+  }
 
   /** setAvatar
    * Set this user's avatar.
@@ -570,7 +581,8 @@ export class UserMock extends User {
     status: UserStatus,
     sends: Send[],
     following: User[],
-    avatar?: LazyStaticImage
+    avatar?: LazyStaticImage,
+    reports?: User[]
   ) {
     super();
     this.username = username;
@@ -581,6 +593,7 @@ export class UserMock extends User {
     this.sends = sends;
     this.following = following;
     this.avatar = avatar;
+    this.reports = reports;
 
     this.hasData = true;
   }
