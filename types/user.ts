@@ -44,6 +44,21 @@ import {
   removeRef,
 } from '../types';
 
+export interface FetchedUser {
+  docRefId: string;
+  username: string;
+  email: string;
+  displayName: string;
+  bio: string;
+  status: UserStatus;
+  avatarUrl: string;
+  followingList: User[];
+  totalPostSizeInBytes: number;
+  bestBoulder: RouteClassifier | undefined;
+  bestToprope: RouteClassifier | undefined;
+  totalSends: number;
+  userObject: User;
+}
 export class User extends LazyObject {
   // Expected and required when getting data
   public username?: string;
@@ -53,7 +68,6 @@ export class User extends LazyObject {
   public status?: UserStatus;
 
   // Filled with defaults if not present when getting data
-  public sends?: Send[];
   public following?: User[];
   public avatar?: LazyStaticImage;
   public totalPostSizeInBytes?: number;
@@ -67,9 +81,6 @@ export class User extends LazyObject {
     this.bio = data.bio;
     this.status = data.status as UserStatus;
 
-    this.sends = (data.sends ?? []).map(
-      (ref: DocumentReference<DocumentData>) => new Send(ref)
-    );
     this.following = (data.following ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
@@ -491,6 +502,37 @@ export class User extends LazyObject {
     }
   }
 
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    return {
+      docRefId: this.docRef!.id,
+      username: await this.getUsername(),
+      email: await this.getEmail(),
+      displayName: await this.getDisplayName(),
+      bio: await this.getBio(),
+      status: await this.getStatus(),
+      avatarUrl: await this.getAvatarUrl(),
+      followingList: this.following ?? [],
+      totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
+      bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
+      bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
+      totalSends: await this.getTotalSends(),
+      postsCursor: this.getPostsCursor(),
+      followersCursor: this.getFollowersCursor(),
+      followingCursor: await this.getFollowingCursor(),
+      userObject: this,
+    } as FetchedUser;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
+
+  public static buildFetcherFromDocRefId(docRefId: string) {
+    return new User(doc(db, 'users', docRefId)).buildFetcher();
+  }
+
   // ======================== Trivial Getters Below ========================
 
   /** getFollowingCursor
@@ -549,13 +591,6 @@ export class User extends LazyObject {
     if (!this.hasData) await this.getData();
     return this.status!;
   }
-
-  /** getSends()
-   */
-  public async getSends() {
-    if (!this.hasData) await this.getData();
-    return this.sends!;
-  }
 }
 
 export class UserMock extends User {
@@ -565,7 +600,6 @@ export class UserMock extends User {
     displayName: string,
     bio: string,
     status: UserStatus,
-    sends: Send[],
     following: User[],
     avatar?: LazyStaticImage
   ) {
@@ -575,16 +609,11 @@ export class UserMock extends User {
     this.displayName = displayName;
     this.bio = bio;
     this.status = status;
-    this.sends = sends;
     this.following = following;
     this.avatar = avatar;
 
     this.hasData = true;
     this._idMock = uuidv4();
-  }
-
-  public addSends(sends: Send[]) {
-    this.sends = this.sends?.concat(sends);
   }
 
   public addFollowing(following: User[]) {

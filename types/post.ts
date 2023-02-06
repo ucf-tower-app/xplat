@@ -30,6 +30,24 @@ import {
   User,
 } from '../types';
 
+export type FetchedPost = {
+  author: User;
+  timestamp: Date;
+  textContent: string;
+  likes: User[];
+  imageContentUrls: string[];
+
+  forum: Forum | undefined;
+  videoContent:
+    | {
+        videoUrl: string;
+        thumbnailUrl: string;
+      }
+    | undefined;
+
+  postObject: Post;
+};
+
 export class Post extends LazyObject {
   // Expected and required when getting data
   public author?: User;
@@ -114,6 +132,34 @@ export class Post extends LazyObject {
       where('post', '==', this.docRef!),
       orderBy('timestamp', 'desc')
     );
+  }
+
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    return {
+      author: await this.getAuthor(),
+      timestamp: await this.getTimestamp(),
+      textContent: await this.getTextContent(),
+      likes: await this.getLikes(),
+      imageContentUrls: await this.getImageContentUrls(),
+      forum: (await this.hasForum()) ? await this.getForum() : undefined,
+      videoContent: (await this.hasVideoContent())
+        ? {
+            videoUrl: await this.getVideoUrl(),
+            thumbnailUrl: await this.getVideoThumbnailUrl(),
+          }
+        : undefined,
+      postObject: this,
+    } as FetchedPost;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
+
+  public static buildFetcherFromDocRefId(docRefId: string) {
+    return new Post(doc(db, 'posts', docRefId)).buildFetcher();
   }
 
   public async likedBy(user: User) {
