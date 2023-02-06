@@ -31,7 +31,7 @@ export enum RouteType {
   Competition = 'Competition',
 }
 
-export enum RouteTech {
+export enum NaturalRules {
   OH = 'OH',
   ON = 'ON',
   OFF = 'OFF',
@@ -93,7 +93,7 @@ export interface EditRouteArgs {
   thumbnail?: Blob;
   color?: string;
   setterRawName?: string;
-  tech?: RouteTech;
+  naturalRules?: NaturalRules;
 }
 
 export class Route extends LazyObject {
@@ -118,7 +118,7 @@ export class Route extends LazyObject {
   public timestamp?: Date;
   public color?: string;
   public setterRawName?: string;
-  public tech?: RouteTech;
+  public naturalRules?: NaturalRules;
 
   public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
@@ -144,7 +144,7 @@ export class Route extends LazyObject {
     if (data.thumbnail) this.thumbnail = new LazyStaticImage(data.thumbnail);
     if (data.rope) this.rope = data.rope;
     if (data.color) this.color = data.color;
-    if (data.tech) this.tech = data.tech;
+    if (data.naturalRules) this.naturalRules = data.naturalRules;
     if (data.setterRawName) this.setterRawName = data.setterRawName;
     if (data.timestamp)
       this.timestamp = new Date(
@@ -312,7 +312,7 @@ export class Route extends LazyObject {
    * @param thumbnail: The route's thumbnail
    * @param color: The hold colors
    * @param setterRawName: If no setter User exists, then just the name of the setter
-   * @param tech: The route's tech
+   * @param naturalRules: The route's naturalRules
    * @remarks Updates this route's fields
    */
   public async edit({
@@ -325,7 +325,7 @@ export class Route extends LazyObject {
     thumbnail = undefined,
     color = undefined,
     setterRawName = undefined,
-    tech = undefined,
+    naturalRules = undefined,
   }: EditRouteArgs) {
     if (name && (await getRouteByName(name)) !== undefined)
       return Promise.reject('Route with this name already exists!');
@@ -347,7 +347,7 @@ export class Route extends LazyObject {
         ...(setter && { setter: setter }),
         ...(rope && { rope: rope }),
         ...(color && { color: color }),
-        ...(tech && { tech: tech }),
+        ...(naturalRules && { naturalRules: naturalRules }),
         ...(setterRawName && { setterRawName: setterRawName }),
         ...(thumbnail && { thumbnail: 'routeThumbnails/' + this.docRef!.id }),
       });
@@ -411,7 +411,7 @@ export class Route extends LazyObject {
    */
   public async getTech() {
     if (!this.hasData) await this.getData();
-    return this.tech!;
+    return this.naturalRules!;
   }
 
   /** hasTimestamp
