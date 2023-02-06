@@ -18,7 +18,7 @@ import {
   Route,
   RouteClassifier,
   RouteStatus,
-  RouteTech,
+  NaturalRules,
   RouteType,
   Tag,
   User,
@@ -63,7 +63,7 @@ export interface CreateRouteArgs {
   thumbnail?: Blob;
   color?: string;
   setterRawName?: string;
-  tech?: RouteTech;
+  naturalRules?: NaturalRules;
 }
 
 /** createRoute
@@ -77,7 +77,7 @@ export interface CreateRouteArgs {
  * @param thumbnail: Optional, the route's thumbnail
  * @param color: Optional, the hold colors
  * @param setterRawName: Optional, if no setter User exists, then just the name of the setter
- * @param tech: Optional, the Route's tech
+ * @param naturalRules: Optional, the Route's naturalRules
  * @returns The newly created Route
  */
 export async function createRoute({
@@ -90,7 +90,7 @@ export async function createRoute({
   thumbnail = undefined,
   color = undefined,
   setterRawName = undefined,
-  tech = undefined,
+  naturalRules = undefined,
 }: CreateRouteArgs) {
   if ((await getRouteByName(name)) !== undefined)
     return Promise.reject('Route with this name already exists!');
@@ -113,7 +113,7 @@ export async function createRoute({
       ...(rope && { rope: rope }),
       ...(tags && { tags: tags }),
       ...(color && { color: color }),
-      ...(tech && { tech: tech }),
+      ...(naturalRules && { naturalRules: naturalRules }),
       ...(description && { description: description }),
       ...(thumbnail && { thumbnail: 'routeThumbnails/' + newRouteDocRef.id }),
       ...(setterRawName && { setterRawName: setterRawName }),
