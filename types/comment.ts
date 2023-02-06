@@ -9,8 +9,10 @@ import {
   runTransaction,
   updateDoc,
 } from 'firebase/firestore';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
-import { LazyObject, Post, User, containsRef } from './types';
+import { LazyObject, Post, User, containsRef } from '../types';
 
 export class Comment extends LazyObject {
   public author?: User;
@@ -155,5 +157,6 @@ export class CommentMock extends Comment {
     this.reports = reports;
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 }

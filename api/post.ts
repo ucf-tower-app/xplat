@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, UploadResult } from 'firebase/storage';
 import { db, storage } from '../Firebase';
-import { Forum, Post, User } from '../types/types';
+import { Forum, Post, User } from '../types';
 
 /** getPostById
  * Returns a Tower Post corresponding to the document ID provided

@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { DocumentData, collection, orderBy, where } from 'firebase/firestore';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
-import { LazyObject, Post, QueryCursor, Route } from './types';
+import { LazyObject, Post, QueryCursor, Route } from '../types';
 
 export class Forum extends LazyObject {
   // Might remain undefined even if has data
@@ -48,5 +50,6 @@ export class ForumMock extends Forum {
     super();
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 }

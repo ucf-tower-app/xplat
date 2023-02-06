@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 
 export enum UserStatus {
+  Banned = -1,
   Unverified = 0,
   Verified = 1,
   Approved = 2,
@@ -16,28 +17,10 @@ export enum UserStatus {
   Developer = 5,
 }
 
-export class ArrayCursor<T> {
-  public data: T[];
-  private idx: number;
+const invalidDocRefIds = new Set<string>();
 
-  constructor(data: T[]) {
-    this.data = data;
-    this.idx = 0;
-  }
-
-  public hasNext() {
-    return this.idx < this.data.length;
-  }
-
-  public pollNext() {
-    if (!this.hasNext()) return undefined;
-    return this.data[this.idx++];
-  }
-
-  public peekNext() {
-    if (!this.hasNext()) return undefined;
-    return this.data[this.idx];
-  }
+export function invalidateDocRefId(docRefId: string) {
+  invalidDocRefIds.add(docRefId);
 }
 
 export abstract class LazyObject {
@@ -45,12 +28,35 @@ export abstract class LazyObject {
   public hasData: boolean;
   public exists: boolean = true;
 
+  public _idMock: string | undefined;
+
+  public getId() {
+    if (this.docRef !== undefined) {
+      return this.docRef.id;
+    } else if (this._idMock !== undefined) {
+      return this._idMock;
+    }
+
+    throw 'Cannot fetch ID from LazyObject with no docRef or idMock';
+  }
+
+  public isMock() {
+    return this.docRef === undefined;
+  }
+
   public abstract initWithDocumentData(data: DocumentData): void;
 
   public async getData(forceUpdate = false): Promise<void> {
-    if (this.hasData && !forceUpdate) return;
+    if (this._idMock !== undefined) return; // No data for mocks
+
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');
+
+    if (!forceUpdate && this.hasData) {
+      if (invalidDocRefIds.has(this.docRef.id))
+        invalidDocRefIds.delete(this.docRef.id);
+      else return;
+    }
 
     return getDoc(this.docRef).then((docSnap) => {
       if (!docSnap.exists()) {

@@ -3,6 +3,7 @@ import {
   EmailAuthProvider,
   deleteUser,
   reauthenticateWithCredential,
+  updatePassword,
 } from 'firebase/auth';
 import {
   DocumentData,
@@ -28,8 +29,10 @@ import {
   ref,
   uploadBytes,
 } from 'firebase/storage';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_AVATAR_PATH, auth, db, storage } from '../Firebase';
-import { isKnightsEmail } from '../api';
+import { isKnightsEmail, validDisplayname } from '../api';
 import {
   ArrayCursor,
   Comment,
@@ -43,7 +46,7 @@ import {
   UserStatus,
   containsRef,
   removeRef,
-} from './types';
+} from '../types';
 
 export class User extends LazyObject {
   // Expected and required when getting data
@@ -61,6 +64,7 @@ export class User extends LazyObject {
   public totalSends?: Map<RouteType, number>;
   public bestSends?: Map<RouteType, number>;
   public reports?: User[];
+  public noSpoilers?: boolean;
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -76,7 +80,7 @@ export class User extends LazyObject {
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
 
-    this.avatar = new LazyStaticImage(data.avatarPath ?? DEFAULT_AVATAR_PATH);
+    this.avatar = new LazyStaticImage(data.avatar ?? DEFAULT_AVATAR_PATH);
 
     this.totalPostSizeInBytes = data.totalPostSizeInBytes ?? 0;
 
@@ -89,6 +93,7 @@ export class User extends LazyObject {
     this.reports = (data.reports ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
+    this.noSpoilers = data.noSpoilers ?? true;
 
     this.hasData = true;
   }
@@ -383,6 +388,20 @@ export class User extends LazyObject {
       );
   }
 
+  /** changePassword
+   * Change password
+   * @param oldPassword
+   * @param newPassword
+   */
+  public async changePassword(oldPassword: string, newPassword: string) {
+    await this.checkIfSignedIn();
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, oldPassword)
+    );
+    return updatePassword(auth.currentUser!, newPassword);
+  }
+
   /** getRecentSendsCursor
    * Get a QueryCursor for a User's sends ordered by most recent
    */
@@ -413,13 +432,28 @@ export class User extends LazyObject {
     if (grade) return new RouteClassifier(grade, type);
   }
 
-  /** getTotalSends
+  /** getTotalSendsByType
    * Get the number of sends for a given type
    * @param type: The query type
    */
-  public async getTotalSends(type: RouteType) {
+  public async getTotalSendsByType(type: RouteType) {
     if (!this.hasData) await this.getData();
     return this.totalSends!.get(type) ?? 0;
+  }
+
+  /** getTotalSends
+   * Get the number of sends for all types
+   * @param type: The query type
+   */
+  public async getTotalSends() {
+    if (!this.hasData) await this.getData();
+    return (
+      (await this.getTotalSendsByType(RouteType.Boulder)) +
+      (await this.getTotalSendsByType(RouteType.Toprope)) +
+      (await this.getTotalSendsByType(RouteType.Competition)) +
+      (await this.getTotalSendsByType(RouteType.Traverse)) +
+      (await this.getTotalSendsByType(RouteType.Leadclimb))
+    );
   }
 
   /** getPostsCursor
@@ -469,7 +503,6 @@ export class User extends LazyObject {
   public async setAvatar(avatar: Blob) {
     await this.checkIfSignedIn();
 
-    console.log(avatar.size);
     if (avatar.size > 100_000) return Promise.reject('Avatar too large!');
 
     if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
@@ -483,6 +516,39 @@ export class User extends LazyObject {
         avatar: 'avatars/' + this.docRef!.id,
       });
     });
+  }
+
+  public async setBio(bio: string) {
+    await this.checkIfSignedIn();
+    return updateDoc(this.docRef!, { bio: bio }).then(() => (this.bio = bio));
+  }
+
+  public async setDisplayName(displayName: string) {
+    await this.checkIfSignedIn();
+    if (this.displayName! === displayName) return;
+    if (!validDisplayname(displayName))
+      return Promise.reject('Invalid Display Name!');
+
+    return runTransaction(db, async (transaction) => {
+      const cacheDocRef = doc(db, 'caches', 'users');
+
+      transaction
+        .update(cacheDocRef, {
+          allUsers: arrayRemove({
+            username: this.username!,
+            displayName: this.displayName!,
+            ref: this.docRef!,
+          }),
+        })
+        .update(cacheDocRef, {
+          allUsers: arrayUnion({
+            username: this.username!,
+            displayName: displayName,
+            ref: this.docRef!,
+          }),
+        })
+        .update(this.docRef!, { displayName: displayName });
+    }).then(() => (this.displayName = displayName));
   }
 
   /** deleteAvatar
@@ -505,7 +571,28 @@ export class User extends LazyObject {
     }
   }
 
+  /** toggleNoSpoilers
+   * Toggle whether or not the user wants spoilers.
+   * @remarks use getNoSpoilers to get the current value
+   * @throws if this is not the signed in user
+   */
+  public async toggleNoSpoilers() {
+    await this.checkIfSignedIn();
+
+    return updateDoc(this.docRef!, {
+      noSpoilers: !(await this.getNoSpoilers()),
+    }).then(() => (this.noSpoilers = !(this.noSpoilers!)));
+  }
+
   // ======================== Trivial Getters Below ========================
+
+  /** getNoSpoilers
+   * @returns true if the user doesn't want spoilers
+   */
+  public async getNoSpoilers() {
+    if (!this.hasData) await this.getData();
+    return this.noSpoilers!;
+  }
 
   /** getFollowingCursor
    * get an ArrayCursor for a User's following
@@ -583,6 +670,7 @@ export class UserMock extends User {
     following: User[],
     avatar?: LazyStaticImage,
     reports?: User[]
+    noSpoilers?: boolean
   ) {
     super();
     this.username = username;
@@ -594,8 +682,10 @@ export class UserMock extends User {
     this.following = following;
     this.avatar = avatar;
     this.reports = reports;
+    this.noSpoilers = noSpoilers;
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 
   public addSends(sends: Send[]) {

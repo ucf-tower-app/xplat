@@ -17,6 +17,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { deleteObject, getMetadata } from 'firebase/storage';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
 import {
   Comment,
@@ -287,6 +289,7 @@ export class PostMock extends Post {
     this.videoContent = videoContent;
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 
   public addLikes(likes: User[]) {

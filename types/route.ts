@@ -17,9 +17,11 @@ import {
   where,
 } from 'firebase/firestore';
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { db, storage } from '../Firebase';
 import { getRouteByName } from '../api';
-import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from './types';
+import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from '../types';
 
 export enum RouteType {
   Boulder = 'Boulder',
@@ -29,7 +31,7 @@ export enum RouteType {
   Competition = 'Competition',
 }
 
-export enum RouteTech {
+export enum NaturalRules {
   OH = 'OH',
   ON = 'ON',
   OFF = 'OFF',
@@ -91,7 +93,7 @@ export interface EditRouteArgs {
   thumbnail?: Blob;
   color?: string;
   setterRawName?: string;
-  tech?: RouteTech;
+  naturalRules?: NaturalRules;
 }
 
 export class Route extends LazyObject {
@@ -116,7 +118,7 @@ export class Route extends LazyObject {
   public timestamp?: Date;
   public color?: string;
   public setterRawName?: string;
-  public tech?: RouteTech;
+  public naturalRules?: NaturalRules;
 
   public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
@@ -142,7 +144,7 @@ export class Route extends LazyObject {
     if (data.thumbnail) this.thumbnail = new LazyStaticImage(data.thumbnail);
     if (data.rope) this.rope = data.rope;
     if (data.color) this.color = data.color;
-    if (data.tech) this.tech = data.tech;
+    if (data.naturalRules) this.naturalRules = data.naturalRules;
     if (data.setterRawName) this.setterRawName = data.setterRawName;
     if (data.timestamp)
       this.timestamp = new Date(
@@ -221,7 +223,6 @@ export class Route extends LazyObject {
       )
     );
     if (q.size === 0) return undefined;
-    console.log(q.docs);
     const res = new Send(q.docs[0].ref);
     res.initWithDocumentData(q.docs[0].data());
     return res;
@@ -237,7 +238,6 @@ export class Route extends LazyObject {
   public async FUCKINSENDIT(sender: User, rating: number | undefined) {
     const already = await this.getSendByUser(sender);
     if (already !== undefined) {
-      console.log('Already sent it');
       return already;
     }
     const newSendDocRef = doc(collection(db, 'sends'));
@@ -312,7 +312,7 @@ export class Route extends LazyObject {
    * @param thumbnail: The route's thumbnail
    * @param color: The hold colors
    * @param setterRawName: If no setter User exists, then just the name of the setter
-   * @param tech: The route's tech
+   * @param naturalRules: The route's naturalRules
    * @remarks Updates this route's fields
    */
   public async edit({
@@ -325,7 +325,7 @@ export class Route extends LazyObject {
     thumbnail = undefined,
     color = undefined,
     setterRawName = undefined,
-    tech = undefined,
+    naturalRules = undefined,
   }: EditRouteArgs) {
     if (name && (await getRouteByName(name)) !== undefined)
       return Promise.reject('Route with this name already exists!');
@@ -347,7 +347,7 @@ export class Route extends LazyObject {
         ...(setter && { setter: setter }),
         ...(rope && { rope: rope }),
         ...(color && { color: color }),
-        ...(tech && { tech: tech }),
+        ...(naturalRules && { naturalRules: naturalRules }),
         ...(setterRawName && { setterRawName: setterRawName }),
         ...(thumbnail && { thumbnail: 'routeThumbnails/' + this.docRef!.id }),
       });
@@ -378,11 +378,47 @@ export class Route extends LazyObject {
     );
   }
 
-  /** getTech
+  /** getStarRating
+   * @returns the average star rating of the route OR undefined if there are no ratings
    */
-  public async getTech() {
+  public async getStarRating() {
     if (!this.hasData) await this.getData();
-    return this.tech!;
+    if (this.totalStars === undefined ||
+        this.numRatings === undefined ||
+        this.numRatings === 0) return undefined;
+
+    return this.totalStars! / this.numRatings!;
+  }
+
+  /** getNumRatings
+   * @returns the total number of ratings the route has received
+   */
+  public async getNumRatings() {
+    if (!this.hasData) await this.getData();
+    return this.numRatings!;
+  }
+
+  /** getTotalStars
+   * @returns the total number of stars the route has received
+   * @remarks This is NOT the average star rating
+   */
+  public async getTotalStars() {
+    if (!this.hasData) await this.getData();
+    return this.totalStars!;
+  }
+
+  /** hasNaturalRules
+   */
+  public async hasNaturalRules() {
+    if (!this.hasData) await this.getData();
+    return this.naturalRules !== undefined;
+  }
+
+  /** getNaturalRules
+   */
+  public async getNaturalRules() {
+    if (!this.hasData) await this.getData();
+    return this.naturalRules!;
   }
 
   /** hasTimestamp
@@ -563,6 +599,7 @@ export class RouteMock extends Route {
     this.rope = rope;
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 
   public addLikes(likes: User[]) {
