@@ -111,8 +111,8 @@ export class User extends LazyObject {
 
     if (!content.hasData) await content.getData();
 
-    // if already reported, return
-    if (await this.alreadyReported(content)) return;
+    // if already reported or already has a significant number of reports (arbitrary), return
+    if (await this.alreadyReported(content) || content.reports?.length! > 7) return;
 
     // update client side
     content.reports?.push(this);
@@ -267,7 +267,7 @@ export class User extends LazyObject {
     await this.checkIfSignedIn();
     if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
 
-    if (!content.hasData) await content.getData();
+    content.getData();
 
     // update client side by deleting all reports from the content's report array
     content.reports = content.reports?.filter(
@@ -343,10 +343,9 @@ export class User extends LazyObject {
       EmailAuthProvider.credential(this.email!, password)
     );
 
-    if (!user.hasData) await user.getData();
+    user.getData();
 
     // delete all content by specified user WITHOUT deleteing their account
-    // todo refactor to reduce code duplication with delete(). Check w Jacob on if this deletes posts & comments
     const preTasks: Promise<any>[] = [];
 
     if (user.avatar && !user.avatar.pathEqual(DEFAULT_AVATAR_PATH))
