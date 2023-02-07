@@ -514,7 +514,7 @@ export class User extends LazyObject {
   public async setAvatar(avatar: Blob) {
     await this.checkIfSignedIn();
 
-    if (avatar.size > 100_000) return Promise.reject('Avatar too large!');
+    if (avatar.size > 100000) return Promise.reject('Avatar too large!');
 
     if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
       await deleteObject(this.avatar.getStorageRef());
