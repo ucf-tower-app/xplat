@@ -23,21 +23,36 @@ export function getPostById(postId: string) {
   return new Post(doc(db, 'posts', postId));
 }
 
+interface CreatePostArgs {
+  author: User;
+  textContent: string;
+  forum?: Forum;
+  imageContent?: Blob[];
+  videoContent?: { video: Blob; thumbnail: Blob };
+  routeInfo?: { name: string; grade: string };
+  isSend: boolean;
+}
+
 /** createPost
  * Creates a post
  * @param author
  * @param textContent: The text content of the post
  * @param forum: Optional, the forum to which the post is made
  * @param imageContent: Optional, a list of Blobs that are images
+ * @param routeName: Optional, the route's name if posting to a route
+ * @param routeGrade: Optional, the route's grade display string, if posting to a route
+ * @param isSend: If this is a stub post representing a send, defaults to false.
  * @returns The newly created Tower Post
  */
-export async function createPost(
-  author: User,
-  textContent: string,
-  forum: Forum | undefined = undefined,
-  imageContent: Blob[] | undefined = undefined,
-  videoContent: { video: Blob; thumbnail: Blob } | undefined = undefined
-) {
+export async function createPost({
+  author,
+  textContent,
+  forum = undefined,
+  imageContent = undefined,
+  videoContent = undefined,
+  routeInfo = undefined,
+  isSend = false,
+}: CreatePostArgs) {
   const newPostDocRef = doc(collection(db, 'posts'));
   const uploads: Promise<UploadResult>[] = [];
   if (videoContent) {
@@ -80,6 +95,8 @@ export async function createPost(
       timestamp: serverTimestamp(),
       textContent: textContent,
       ...(forum && { forum: forum.docRef }),
+      ...(routeInfo && { routeInfo: routeInfo }),
+      ...(isSend && { isSend: isSend }),
       ...(imageContent && {
         imageContent: imageContent!.map(
           (_, idx) => 'posts/' + newPostDocRef.id + '_' + idx
