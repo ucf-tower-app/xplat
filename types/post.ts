@@ -47,6 +47,8 @@ export type FetchedPost = {
     | undefined;
 
   postObject: Post;
+  isSend: boolean;
+  routeInfo?: { name: string; grade: string };
 };
 
 export class Post extends LazyObject {
@@ -60,9 +62,11 @@ export class Post extends LazyObject {
   public reports?: User[];
   public _isSaved?: boolean;
   public imageContent?: LazyStaticImage[];
+  public _isSend?: boolean;
 
   // Might remain undefined even if has data
   public forum?: Forum;
+  public routeInfo?: { name: string; grade: string };
   public videoContent?: LazyStaticVideo;
 
   public initWithDocumentData(data: DocumentData) {
@@ -82,7 +86,9 @@ export class Post extends LazyObject {
     this.imageContent = (data.imageContent ?? []).map(
       (path: string) => new LazyStaticImage(path)
     );
+    this._isSend = data.isSend ?? false;
 
+    if (data.routeInfo) this.routeInfo = data.routeInfo;
     if (data.forum) this.forum = new Forum(data.forum);
     if (data.videoContent)
       this.videoContent = new LazyStaticVideo(
@@ -157,6 +163,8 @@ export class Post extends LazyObject {
           }
         : undefined,
       postObject: this,
+      isSend: await this.isSend(),
+      routeInfo: this.routeInfo,
     } as FetchedPost;
   }
 
@@ -167,7 +175,7 @@ export class Post extends LazyObject {
   public static buildFetcherFromDocRefId(docRefId: string) {
     return new Post(doc(db, 'posts', docRefId)).buildFetcher();
   }
-  
+
   /** checkShouldBeHidden
    * Checks if this content should be hidden (if over 3 of reports)
    * @returns true if this content should be hidden, false if not
@@ -175,6 +183,21 @@ export class Post extends LazyObject {
   public async checkShouldBeHidden() {
     if (!this.hasData) await this.getData();
     return this.reports!.length >= 3;
+  }
+
+  public async isSend() {
+    if (!this.hasData) await this.getData();
+    return this._isSend!;
+  }
+
+  public async hasRouteInfo() {
+    if (!this.hasData) await this.getData();
+    return this.routeInfo !== undefined;
+  }
+
+  public async getRouteInfo() {
+    if (!this.hasData) await this.getData();
+    return this.routeInfo!;
   }
 
   public async likedBy(user: User) {
@@ -323,6 +346,7 @@ export class PostMock extends Post {
     likes: User[] = [],
     reports: User[] = [],
     imageContent: LazyStaticImage[] = [],
+    isSend: boolean,
     videoContent?: LazyStaticVideo
   ) {
     super();
@@ -333,6 +357,7 @@ export class PostMock extends Post {
     this.reports = reports;
     this.imageContent = imageContent;
     this.videoContent = videoContent;
+    this._isSend = isSend;
 
     this.hasData = true;
     this._idMock = uuidv4();
