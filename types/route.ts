@@ -43,6 +43,37 @@ export enum RouteStatus {
   Archived = 2,
 }
 
+enum Semester {
+  Spring = 'Spring',
+  Summer = 'Summer',
+  Fall = 'Fall',
+}
+
+function getSemester(date: Date) {
+  const month = date.getMonth();
+  if (month <= 5) return Semester.Spring;
+  if (month <= 7) return Semester.Summer;
+  return Semester.Fall;
+}
+
+export function getMonthlyLeaderboardDocRef(date: Date) {
+  return doc(
+    db,
+    'leaderboards',
+    date.toLocaleString('default', { month: 'long' }) +
+      '_' +
+      date.getFullYear().toString()
+  );
+}
+
+export function getSemesterLeaderboardDocRef(date: Date) {
+  return doc(
+    db,
+    'leaderboards',
+    getSemester(date) + '_' + date.getFullYear().toString()
+  );
+}
+
 /** RouteClassifier class
  * Given a route type and grade number, respective user-displayable string
  * @param rawgrade: The number stored in firebase and backend objects
@@ -264,6 +295,8 @@ export class Route extends LazyObject {
       return already;
     }
     const newSendDocRef = doc(collection(db, 'sends'));
+    const now = new Date();
+
     await runTransaction(db, async (transaction) => {
       await Promise.all([
         this.updateWithTransaction(transaction),
@@ -304,7 +337,33 @@ export class Route extends LazyObject {
         .update(sender.docRef!, {
           totalSends: Object.fromEntries(totalSends),
           bestSends: Object.fromEntries(bestSends),
-        });
+        })
+        .set(
+          getMonthlyLeaderboardDocRef(now),
+          {
+            data: {
+              [sender.docRef!.id]: {
+                displayName: sender.displayName!,
+                sends: increment(1),
+                points: increment(this.classifier!.rawgrade),
+              },
+            },
+          },
+          { merge: true }
+        )
+        .set(
+          getSemesterLeaderboardDocRef(now),
+          {
+            data: {
+              [sender.docRef!.id]: {
+                displayName: sender.displayName!,
+                sends: increment(1),
+                points: increment(this.classifier!.rawgrade),
+              },
+            },
+          },
+          { merge: true }
+        );
     });
     return new Send(newSendDocRef);
   }
