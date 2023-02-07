@@ -5,6 +5,7 @@ import {
   arrayRemove,
   arrayUnion,
   deleteDoc,
+  doc,
   refEqual,
   runTransaction,
   updateDoc,
@@ -13,6 +14,18 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
 import { LazyObject, Post, User, containsRef } from '../types';
+
+export type FetchedComment = {
+  author: User;
+  timestamp: Date;
+  textContent: string;
+  post: Post;
+  postDocRefId: string;
+
+  likes: User[];
+
+  commentObject: Comment;
+};
 
 export class Comment extends LazyObject {
   public author?: User;
@@ -101,6 +114,28 @@ export class Comment extends LazyObject {
       this.likes = this.likes?.filter(
         (like) => !refEqual(like.docRef!, user.docRef!)
       );
+  }
+
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    return {
+      author: await this.getAuthor(),
+      timestamp: await this.getTimestamp(),
+      textContent: await this.getTextContent(),
+      post: await this.getPost(),
+      postDocRefId: (await this.getPost()).docRef!.id,
+      likes: await this.getLikes(),
+      commentObject: this,
+    } as FetchedComment;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
+
+  public static buildFetcherFromDocRefId(docRefId: string) {
+    return new Comment(doc(db, 'comments', docRefId)).buildFetcher();
   }
 
   // ======================== Trivial Getters Below ========================

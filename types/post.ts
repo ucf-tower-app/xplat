@@ -31,6 +31,24 @@ import {
   containsRef,
 } from '../types';
 
+export type FetchedPost = {
+  author: User;
+  timestamp: Date;
+  textContent: string;
+  likes: User[];
+  imageContentUrls: string[];
+
+  forum: Forum | undefined;
+  videoContent:
+    | {
+        videoUrl: string;
+        thumbnailUrl: string;
+      }
+    | undefined;
+
+  postObject: Post;
+};
+
 export class Post extends LazyObject {
   // Expected and required when getting data
   public author?: User;
@@ -122,6 +140,34 @@ export class Post extends LazyObject {
     );
   }
 
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    return {
+      author: await this.getAuthor(),
+      timestamp: await this.getTimestamp(),
+      textContent: await this.getTextContent(),
+      likes: await this.getLikes(),
+      imageContentUrls: await this.getImageContentUrls(),
+      forum: (await this.hasForum()) ? await this.getForum() : undefined,
+      videoContent: (await this.hasVideoContent())
+        ? {
+            videoUrl: await this.getVideoUrl(),
+            thumbnailUrl: await this.getVideoThumbnailUrl(),
+          }
+        : undefined,
+      postObject: this,
+    } as FetchedPost;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
+
+  public static buildFetcherFromDocRefId(docRefId: string) {
+    return new Post(doc(db, 'posts', docRefId)).buildFetcher();
+  }
+  
   /** checkShouldBeHidden
    * Checks if this content should be hidden (if over 3 of reports)
    * @returns true if this content should be hidden, false if not

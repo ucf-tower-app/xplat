@@ -96,6 +96,29 @@ export interface EditRouteArgs {
   naturalRules?: NaturalRules;
 }
 
+export type FetchedRoute = {
+  name: string;
+  gradeDisplayString: string;
+  classifier: RouteClassifier;
+  likes: User[];
+  stringifiedTags: string;
+  status: RouteStatus;
+  description: string;
+  thumbnailUrl: string;
+
+  setter?: User;
+  setterRawName?: string;
+  rope?: number;
+  timestamp?: Date; // Defined if active or archived
+  color?: string;
+  naturalRules?: NaturalRules;
+
+  forumDocRefID: string;
+  routeObject: Route;
+};
+
+const DEFAULT_THUMBNAIL_TMP = 'https://wallpaperaccess.com/full/317501.jpg';
+
 export class Route extends LazyObject {
   // Expected and required when getting data
   public name?: string;
@@ -369,6 +392,51 @@ export class Route extends LazyObject {
     return res;
   }
 
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    const tags = await this.getTags();
+    let tagStringBuilder = '';
+    for (const tag of tags) {
+      const tagName = await tag.getName();
+      tagStringBuilder = tagStringBuilder + tagName + ', ';
+    }
+    // Remove trailing comma
+    if (tagStringBuilder.length > 2 && tagStringBuilder.endsWith(', '))
+      tagStringBuilder = tagStringBuilder.slice(0, -2);
+
+    return {
+      name: await this.getName(),
+      gradeDisplayString: await this.getGradeDisplayString(),
+      classifier: this.classifier!,
+      likes: await this.getLikes(),
+      stringifiedTags: tagStringBuilder,
+      status: await this.getStatus(),
+      description: await this.getDescription(),
+      thumbnailUrl: (await this.hasThumbnail())
+        ? await this.getThumbnailUrl()
+        : DEFAULT_THUMBNAIL_TMP,
+
+      setter: this.setter,
+      setterRawName: this.setterRawName,
+      timestamp: this.timestamp,
+      rope: this.rope,
+      color: this.color,
+      naturalRules: this.naturalRules,
+
+      forumDocRefID: (await this.getForum()).docRef!.id,
+      routeObject: this,
+    } as FetchedRoute;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
+
+  public static buildFetcherFromDocRefId(docRefId: string) {
+    return new Route(doc(db, 'routes', docRefId)).buildFetcher();
+  }
+
   // ======================== Trivial Getters Below ========================
   /** likedBy
    */
@@ -383,9 +451,12 @@ export class Route extends LazyObject {
    */
   public async getStarRating() {
     if (!this.hasData) await this.getData();
-    if (this.totalStars === undefined ||
-        this.numRatings === undefined ||
-        this.numRatings === 0) return undefined;
+    if (
+      this.totalStars === undefined ||
+      this.numRatings === undefined ||
+      this.numRatings === 0
+    )
+      return undefined;
 
     return this.totalStars! / this.numRatings!;
   }
