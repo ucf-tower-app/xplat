@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
 import {
   DocumentData,
   DocumentReference,
@@ -19,6 +17,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { deleteObject, getMetadata } from 'firebase/storage';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
 import {
   Comment,
@@ -28,7 +28,28 @@ import {
   LazyStaticVideo,
   QueryCursor,
   User,
-} from './types';
+  containsRef,
+} from '../types';
+
+export type FetchedPost = {
+  author: User;
+  timestamp: Date;
+  textContent: string;
+  likes: User[];
+  imageContentUrls: string[];
+
+  forum: Forum | undefined;
+  videoContent:
+    | {
+        videoUrl: string;
+        thumbnailUrl: string;
+      }
+    | undefined;
+
+  postObject: Post;
+  isSend: boolean;
+  routeInfo?: { name: string; grade: string };
+};
 
 export class Post extends LazyObject {
   // Expected and required when getting data
@@ -38,11 +59,14 @@ export class Post extends LazyObject {
 
   // Filled with defaults if not present when getting data
   public likes?: User[];
+  public reports?: User[];
   public _isSaved?: boolean;
   public imageContent?: LazyStaticImage[];
+  public _isSend?: boolean;
 
   // Might remain undefined even if has data
   public forum?: Forum;
+  public routeInfo?: { name: string; grade: string };
   public videoContent?: LazyStaticVideo;
 
   public initWithDocumentData(data: DocumentData) {
@@ -55,11 +79,16 @@ export class Post extends LazyObject {
     this.likes = (data.likes ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
+    this.reports = (data.reports ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
     this._isSaved = data._isSaved ?? false;
     this.imageContent = (data.imageContent ?? []).map(
       (path: string) => new LazyStaticImage(path)
     );
+    this._isSend = data.isSend ?? false;
 
+    if (data.routeInfo) this.routeInfo = data.routeInfo;
     if (data.forum) this.forum = new Forum(data.forum);
     if (data.videoContent)
       this.videoContent = new LazyStaticVideo(
@@ -79,6 +108,7 @@ export class Post extends LazyObject {
         textContent: textContent,
         timestamp: serverTimestamp(),
         likes: [],
+        reports: [],
         post: this.docRef!,
       });
     });
@@ -116,10 +146,63 @@ export class Post extends LazyObject {
     );
   }
 
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    return {
+      author: await this.getAuthor(),
+      timestamp: await this.getTimestamp(),
+      textContent: await this.getTextContent(),
+      likes: await this.getLikes(),
+      imageContentUrls: await this.getImageContentUrls(),
+      forum: (await this.hasForum()) ? await this.getForum() : undefined,
+      videoContent: (await this.hasVideoContent())
+        ? {
+            videoUrl: await this.getVideoUrl(),
+            thumbnailUrl: await this.getVideoThumbnailUrl(),
+          }
+        : undefined,
+      postObject: this,
+      isSend: await this.isSend(),
+      routeInfo: this.routeInfo,
+    } as FetchedPost;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
+
+  public static buildFetcherFromDocRefId(docRefId: string) {
+    return new Post(doc(db, 'posts', docRefId)).buildFetcher();
+  }
+
+  /** checkShouldBeHidden
+   * Checks if this content should be hidden (if over 3 of reports)
+   * @returns true if this content should be hidden, false if not
+   */
+  public async checkShouldBeHidden() {
+    if (!this.hasData) await this.getData();
+    return this.reports!.length >= 3;
+  }
+
+  public async isSend() {
+    if (!this.hasData) await this.getData();
+    return this._isSend!;
+  }
+
+  public async hasRouteInfo() {
+    if (!this.hasData) await this.getData();
+    return this.routeInfo !== undefined;
+  }
+
+  public async getRouteInfo() {
+    if (!this.hasData) await this.getData();
+    return this.routeInfo!;
+  }
+
   public async likedBy(user: User) {
-    return this.getLikes().then((likes) =>
-      likes.some((like) => refEqual(like.docRef!, user.docRef!))
-    );
+    if (!this.hasData) await this.getData();
+    return containsRef(this.likes!, user);
   }
 
   public async getAuthor() {
@@ -261,7 +344,9 @@ export class PostMock extends Post {
     timestamp: Date,
     textContent: string,
     likes: User[] = [],
+    reports: User[] = [],
     imageContent: LazyStaticImage[] = [],
+    isSend: boolean,
     videoContent?: LazyStaticVideo
   ) {
     super();
@@ -269,8 +354,10 @@ export class PostMock extends Post {
     this.timestamp = timestamp;
     this.textContent = textContent;
     this.likes = likes;
+    this.reports = reports;
     this.imageContent = imageContent;
     this.videoContent = videoContent;
+    this._isSend = isSend;
 
     this.hasData = true;
     this._idMock = uuidv4();

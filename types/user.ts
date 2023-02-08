@@ -1,23 +1,27 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
 import {
   EmailAuthProvider,
   deleteUser,
   reauthenticateWithCredential,
+  updatePassword,
 } from 'firebase/auth';
 import {
   DocumentData,
   DocumentReference,
   Transaction,
+  setDoc,
+  getDocs,
+  query,
   arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
   doc,
   orderBy,
+  refEqual,
   runTransaction,
   updateDoc,
+  serverTimestamp,
   where,
 } from 'firebase/firestore';
 import {
@@ -26,6 +30,8 @@ import {
   ref,
   uploadBytes,
 } from 'firebase/storage';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_AVATAR_PATH, auth, db, storage } from '../Firebase';
 import { isKnightsEmail, validDisplayname } from '../api';
 import {
@@ -41,8 +47,23 @@ import {
   UserStatus,
   containsRef,
   removeRef,
-} from './types';
+} from '../types';
 
+export interface FetchedUser {
+  docRefId: string;
+  username: string;
+  email: string;
+  displayName: string;
+  bio: string;
+  status: UserStatus;
+  avatarUrl: string;
+  followingList: User[];
+  totalPostSizeInBytes: number;
+  bestBoulder: RouteClassifier | undefined;
+  bestToprope: RouteClassifier | undefined;
+  totalSends: number;
+  userObject: User;
+}
 export class User extends LazyObject {
   // Expected and required when getting data
   public username?: string;
@@ -52,12 +73,13 @@ export class User extends LazyObject {
   public status?: UserStatus;
 
   // Filled with defaults if not present when getting data
-  public sends?: Send[];
   public following?: User[];
   public avatar?: LazyStaticImage;
   public totalPostSizeInBytes?: number;
   public totalSends?: Map<RouteType, number>;
   public bestSends?: Map<RouteType, number>;
+  public reports?: User[];
+  public noSpoilers?: boolean;
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
@@ -66,9 +88,6 @@ export class User extends LazyObject {
     this.bio = data.bio;
     this.status = data.status as UserStatus;
 
-    this.sends = (data.sends ?? []).map(
-      (ref: DocumentReference<DocumentData>) => new Send(ref)
-    );
     this.following = (data.following ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
@@ -83,8 +102,88 @@ export class User extends LazyObject {
     this.bestSends = new Map(
       Object.entries(data.bestSends ?? {}).map((a) => a as [RouteType, number])
     );
+    this.reports = (data.reports ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.noSpoilers = data.noSpoilers ?? true;
 
     this.hasData = true;
+  }
+
+  /** addReport
+   * Add this user's report to specified content
+   * @param content: the post or comment to be reported
+   */
+  public async addReport(content: Post | Comment | User) {
+
+    // check that the content to be reported isn't from an employee/manager, we don't want to automod them
+    if (await (await content.getAuthor()).getStatus() >= UserStatus.Employee)
+      return Promise.reject('Cant report an employees content');
+
+    if (!content.hasData) await content.getData();
+
+    // if already reported or already has a significant number of reports (arbitrary), return
+    if (await this.alreadyReported(content) || content.reports?.length! > 7) return;
+
+    // update client side
+    content.reports?.push(this);
+
+    // update server side
+    const newReportDocRef = doc(collection(db, 'reports'));
+
+    return runTransaction(db, async (transaction: Transaction) => {
+      transaction.set(newReportDocRef, {
+        reporter: this.docRef!,
+        reported: (content instanceof User ? content.getUsername() : content.getAuthor()),
+        timestamp: serverTimestamp(),
+        content: content.docRef!,
+      });
+      transaction.update(content.docRef!, {
+        reports: arrayUnion(this.docRef!),
+      });
+    });
+  }
+
+  /** removeReport
+   * Remove this user's report of specified content
+   * This is for users to remove their own reports, employees use removeAllReports.
+   * @param content: the post or comment to be unreported
+   */
+  public async removeReport(content: Post | Comment) {
+    if (!content.hasData) await content.getData();
+
+    // if not reported, return
+    if (await !this.alreadyReported(content)) return;
+
+    // update client side
+    content.reports = content.reports?.filter(
+      (report) => !refEqual(report.docRef!, this.docRef!)
+    );
+
+    // update server side
+    const q = await getDocs(
+      query(
+      collection(db, 'reports'),
+      where('reporter', '==', this.docRef!),
+      where('content', '==', content.docRef!)
+      )
+    );
+    const reportDocRef = q.docs[0].ref;
+    return runTransaction(db, async (transaction: Transaction) => {
+      transaction.delete(reportDocRef);
+      transaction.update(content.docRef!, {
+        reports: arrayRemove(this.docRef!),
+      });
+    });
+  }
+
+  /** alreadyReported
+  * Checks if this  user has already reported the specified content
+  * @returns true if this user has already reported the content, false otherwise
+  */
+  public async alreadyReported(content: Post | Comment | User) {
+    if (!content.hasData) await content.getData();
+    return containsRef(content.reports!, this);
   }
 
   /** followUser
@@ -116,7 +215,7 @@ export class User extends LazyObject {
   }
 
   /** delete
-   * Delete a user. Requires that the user to be deleted is the current auth user.
+   * Delete this user's own account. Requires that the user to be deleted is the current auth user.
    * Deletes all relevant effects from the user such as:
    * - Posts and Comments
    * - Avatar
@@ -129,6 +228,7 @@ export class User extends LazyObject {
       return Promise.reject(
         'Cannot delete User to which you are not signed in.'
       );
+
     await this.getData(true);
     // Force update to have best non-guaranteed recent data
     await reauthenticateWithCredential(
@@ -168,6 +268,129 @@ export class User extends LazyObject {
     console.log('Document deleted');
     await deleteUser(auth.currentUser!);
     console.log('Auth deleted');
+  }
+
+  /** clearAllReports
+   * Clear all reports on this piece of content.
+   * @param content: the post, comment, or user to be cleared of all current reports
+   */
+  public async clearAllReports(content: Post | Comment | User) {
+    await this.checkIfSignedIn();
+    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+
+    content.getData();
+
+    // update client side by deleting all reports from the content's report array
+    content.reports = content.reports?.filter(
+      (report) => !refEqual(report.docRef!, this.docRef!)
+    );
+
+    // update server side: get all reports on this content from the reports collection
+    const q = await getDocs(
+      query(
+      collection(db, 'reports'),
+      where('content', '==', content.docRef!)
+      )
+    );
+    // run a transaction that deletes all reports found in this query
+    return runTransaction(db, async (transaction: Transaction) => {
+      q.docs.forEach((reportDoc) => {
+        // delete all from reports collection
+        transaction.delete(reportDoc.ref);
+        // delete all from the content's report array
+        transaction.update(content.docRef!, {
+          reports: arrayRemove(reportDoc.data().reporter),
+        });
+      });
+    });
+  }
+
+  /** deleteReportedContent
+   * Delete a piece of reported content, as well as its reports.
+   * This doesn't ban users.
+   * Employees should specify a reason as to why they took action, this will be held in a modHistory collection.
+   * @param content: the post, comment, or user to be cleared of all current reports
+   */
+  public async deleteReportedContent(content: Post | Comment | User, modReason: string) {
+    await this.checkIfSignedIn();
+    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+
+    if (!content.hasData) await content.getData();
+
+    this.clearAllReports(content);
+    // if content is a post or comment, delete it.
+    if (content instanceof Post || content instanceof Comment) content.delete();
+    // if content is a user, remove their avatar & bio & displayname.
+    else if (content instanceof User) {
+      content.deleteAvatar();
+      content.setBio("My profile content got deleted by a moderator and I am so embarrassed.");
+      content.setDisplayName("Disappointment");
+    }
+
+    // add a modHistory entry
+    const modHistoryDocRef = doc(db, 'modHistory');
+    return setDoc(modHistoryDocRef, {
+      userModerated: (await content.getAuthor()).username,
+      userEmail: (await content.getAuthor()).email,
+      mod: this.docRef,
+      modReason: modReason,
+      timestamp: serverTimestamp()
+    });
+  }
+
+  /** banUser
+   * Ban a user, as well as delete all their content. Keeps their account/email in auth.
+   * Employees should specify a reason as to why they took action, this will be held in a modHistory collection.
+   * @param user: the user to be banned
+   * @param modReason: the reason for the ban
+   * @param password: the user's auth password. Required by auth.
+   */
+  public async banUser(user: User, modReason: string, password: string) {
+    await this.checkIfSignedIn();
+    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, password)
+    );
+
+    user.getData();
+
+    // delete all content by specified user WITHOUT deleteing their account
+    const preTasks: Promise<any>[] = [];
+
+    if (user.avatar && !user.avatar.pathEqual(DEFAULT_AVATAR_PATH))
+      preTasks.push(deleteObject(user.avatar.getStorageRef()));
+
+    await Promise.all(preTasks);
+    console.log('Pre-tasks done');
+
+    // Now, all comments and posts we've ever made have *probably* been deleted.
+    // However, to be sure, we'll collect some tasks to do after the main transaction.
+    await runTransaction(db, async (transaction) => {
+      // Definitions
+      const cacheDocRef = doc(db, 'caches', 'users');
+
+      // Reads
+      await user.updateWithTransaction(transaction);
+
+      // Writes
+      transaction.update(cacheDocRef, {
+        allUsers: arrayRemove({
+          username: user.username!,
+          displayName: user.displayName!,
+          ref: user.docRef!,
+        }),
+      });
+    });
+    console.log('Main transaction done');
+
+    // update user status to banned
+    await runTransaction(db, async (transaction: Transaction) => {
+      await user.updateWithTransaction(transaction);
+      user.status = UserStatus.Banned;
+      transaction.update(user.docRef!, { status: UserStatus.Banned });
+    });
   }
 
   /** approveOtherUser
@@ -305,6 +528,20 @@ export class User extends LazyObject {
       return Promise.reject(
         'Cannot perform this action on behalf of someone else.'
       );
+  }
+
+  /** changePassword
+   * Change password
+   * @param oldPassword
+   * @param newPassword
+   */
+  public async changePassword(oldPassword: string, newPassword: string) {
+    await this.checkIfSignedIn();
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, oldPassword)
+    );
+    return updatePassword(auth.currentUser!, newPassword);
   }
 
   /** getRecentSendsCursor
@@ -476,7 +713,67 @@ export class User extends LazyObject {
     }
   }
 
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    return {
+      docRefId: this.docRef!.id,
+      username: await this.getUsername(),
+      email: await this.getEmail(),
+      displayName: await this.getDisplayName(),
+      bio: await this.getBio(),
+      status: await this.getStatus(),
+      avatarUrl: await this.getAvatarUrl(),
+      followingList: this.following ?? [],
+      totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
+      bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
+      bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
+      totalSends: await this.getTotalSends(),
+      postsCursor: this.getPostsCursor(),
+      followersCursor: this.getFollowersCursor(),
+      followingCursor: await this.getFollowingCursor(),
+      userObject: this,
+    } as FetchedUser;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
+
+  public static buildFetcherFromDocRefId(docRefId: string) {
+    return new User(doc(db, 'users', docRefId)).buildFetcher();
+  }
+  
+  /** toggleNoSpoilers
+   * Toggle whether or not the user wants spoilers.
+   * @remarks use getNoSpoilers to get the current value
+   * @throws if this is not the signed in user
+   */
+  public async toggleNoSpoilers() {
+    await this.checkIfSignedIn();
+
+    return updateDoc(this.docRef!, {
+      noSpoilers: !(await this.getNoSpoilers()),
+    }).then(() => (this.noSpoilers = !(this.noSpoilers!)));
+  }
+
   // ======================== Trivial Getters Below ========================
+
+  /** getAuthor
+   * @returns this user :)
+   * @remarks this is here to make User work cleanly with reporting functions, avoids ternary operators
+   */
+  public getAuthor() {
+    return this;
+  }
+
+  /** getNoSpoilers
+   * @returns true if the user doesn't want spoilers
+   */
+  public async getNoSpoilers() {
+    if (!this.hasData) await this.getData();
+    return this.noSpoilers!;
+  }
 
   /** getFollowingCursor
    * get an ArrayCursor for a User's following
@@ -534,13 +831,6 @@ export class User extends LazyObject {
     if (!this.hasData) await this.getData();
     return this.status!;
   }
-
-  /** getSends()
-   */
-  public async getSends() {
-    if (!this.hasData) await this.getData();
-    return this.sends!;
-  }
 }
 
 export class UserMock extends User {
@@ -550,9 +840,10 @@ export class UserMock extends User {
     displayName: string,
     bio: string,
     status: UserStatus,
-    sends: Send[],
     following: User[],
-    avatar?: LazyStaticImage
+    avatar?: LazyStaticImage,
+    reports?: User[],
+    noSpoilers?: boolean
   ) {
     super();
     this.username = username;
@@ -560,16 +851,13 @@ export class UserMock extends User {
     this.displayName = displayName;
     this.bio = bio;
     this.status = status;
-    this.sends = sends;
     this.following = following;
     this.avatar = avatar;
+    this.reports = reports;
+    this.noSpoilers = noSpoilers;
 
     this.hasData = true;
     this._idMock = uuidv4();
-  }
-
-  public addSends(sends: Send[]) {
-    this.sends = this.sends?.concat(sends);
   }
 
   public addFollowing(following: User[]) {

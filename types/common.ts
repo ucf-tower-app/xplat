@@ -8,12 +8,19 @@ import {
 } from 'firebase/firestore';
 
 export enum UserStatus {
+  Banned = -1,
   Unverified = 0,
   Verified = 1,
   Approved = 2,
   Employee = 3,
   Manager = 4,
   Developer = 5,
+}
+
+const invalidDocRefIds = new Set<string>();
+
+export function invalidateDocRefId(docRefId: string) {
+  invalidDocRefIds.add(docRefId);
 }
 
 export abstract class LazyObject {
@@ -25,20 +32,31 @@ export abstract class LazyObject {
 
   public getId() {
     if (this.docRef !== undefined) {
-      return this.docRef.id
+      return this.docRef.id;
     } else if (this._idMock !== undefined) {
-      return this._idMock
+      return this._idMock;
     }
 
-    throw "Cannot fetch ID from LazyObject with no docRef or idMock"; 
+    throw 'Cannot fetch ID from LazyObject with no docRef or idMock';
+  }
+
+  public isMock() {
+    return this.docRef === undefined;
   }
 
   public abstract initWithDocumentData(data: DocumentData): void;
 
   public async getData(forceUpdate = false): Promise<void> {
-    if (this.hasData && !forceUpdate) return;
+    if (this._idMock !== undefined) return; // No data for mocks
+
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');
+
+    if (!forceUpdate && this.hasData) {
+      if (invalidDocRefIds.has(this.docRef.id))
+        invalidDocRefIds.delete(this.docRef.id);
+      else return;
+    }
 
     return getDoc(this.docRef).then((docSnap) => {
       if (!docSnap.exists()) {

@@ -20,7 +20,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from '../Firebase';
-import { SubstringMatcher, User, UserStatus } from '../types/types';
+import { SubstringMatcher, User, UserStatus } from '../types';
 
 /** isKnightsEmail
  * Check if an email is a knights email
@@ -45,6 +45,14 @@ export function validUsername(username: string): boolean {
  */
 export function validDisplayname(displayname: string): boolean {
   return displayname.match('^[a-zA-Z][a-zA-Z -]{3,28}[a-zA-Z]$') !== null;
+}
+
+/** validBio
+ * Check whether a bio is lequal 200 characters
+ * @param bio
+ */
+export function validBio(bio: string): boolean {
+  return bio.length <= 200;
 }
 
 /** createUser
@@ -127,7 +135,6 @@ export async function getUserByUsername(username: string) {
     query(collection(db, 'users'), where('username', '==', username), limit(1))
   );
   if (q.size === 0) return undefined;
-  console.log(q.docs);
   const res = new User(q.docs[0].ref);
   res.initWithDocumentData(q.docs[0].data());
   return res;
@@ -182,7 +189,7 @@ export const startWaitForVerificationPoll = (
   }
 };
 
-interface UserSearchResult {
+export interface UserSearchResult {
   username: string;
   displayName: string;
   user: User;
@@ -225,6 +232,5 @@ export async function getUserSubstringMatcher() {
 //         };
 //     })
 //     .filter((obj: any | undefined) => obj !== undefined);
-//   console.log(newMap);
 //   return setDoc(doc(db, 'caches', 'users'), { allUsers: newMap });
 // }

@@ -1,6 +1,6 @@
 import { collection, orderBy } from 'firebase/firestore';
 import { db } from '../Firebase';
-import { Post, QueryCursor } from '../types/types';
+import { Post, QueryCursor } from '../types';
 
 /** getAllPostsCursor
  * Get a cursor which returns all posts from newest to oldest

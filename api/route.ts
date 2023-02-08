@@ -13,17 +13,17 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
-import { SubstringMatcher } from '../types/substringMatcher';
 import {
   QueryCursor,
   Route,
   RouteClassifier,
   RouteStatus,
-  RouteTech,
+  NaturalRules,
   RouteType,
   Tag,
   User,
-} from '../types/types';
+} from '../types';
+import { SubstringMatcher } from '../types/substringMatcher';
 
 /** getRouteById
  * Returns a Firebase Route corresponding to the document ID provided
@@ -48,7 +48,6 @@ export async function getRouteByName(name: string) {
     query(collection(db, 'routes'), where('name', '==', name), limit(1))
   );
   if (q.size === 0) return undefined;
-  console.log(q.docs);
   const res = new Route(q.docs[0].ref);
   res.initWithDocumentData(q.docs[0].data());
   return res;
@@ -64,7 +63,7 @@ export interface CreateRouteArgs {
   thumbnail?: Blob;
   color?: string;
   setterRawName?: string;
-  tech?: RouteTech;
+  naturalRules?: NaturalRules;
 }
 
 /** createRoute
@@ -78,7 +77,7 @@ export interface CreateRouteArgs {
  * @param thumbnail: Optional, the route's thumbnail
  * @param color: Optional, the hold colors
  * @param setterRawName: Optional, if no setter User exists, then just the name of the setter
- * @param tech: Optional, the Route's tech
+ * @param naturalRules: Optional, the Route's naturalRules
  * @returns The newly created Route
  */
 export async function createRoute({
@@ -91,7 +90,7 @@ export async function createRoute({
   thumbnail = undefined,
   color = undefined,
   setterRawName = undefined,
-  tech = undefined,
+  naturalRules = undefined,
 }: CreateRouteArgs) {
   if ((await getRouteByName(name)) !== undefined)
     return Promise.reject('Route with this name already exists!');
@@ -114,7 +113,7 @@ export async function createRoute({
       ...(rope && { rope: rope }),
       ...(tags && { tags: tags }),
       ...(color && { color: color }),
-      ...(tech && { tech: tech }),
+      ...(naturalRules && { naturalRules: naturalRules }),
       ...(description && { description: description }),
       ...(thumbnail && { thumbnail: 'routeThumbnails/' + newRouteDocRef.id }),
       ...(setterRawName && { setterRawName: setterRawName }),
