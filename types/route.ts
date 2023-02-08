@@ -31,6 +31,22 @@ export enum RouteType {
   Competition = 'Competition',
 }
 
+export enum RouteColor {
+  Red = 'red',
+  Blue = 'blue',
+  Green = 'green',
+  Yellow = 'yellow',
+  Orange = 'orange',
+  Purple = 'purple',
+  Pink = 'pink',
+  Black = 'black',
+  White = 'white',
+  Grey = 'grey',
+  Brown = 'brown',
+  Multi = 'multi',
+  Other = 'other',
+}
+
 export enum NaturalRules {
   OH = 'OH',
   ON = 'ON',
