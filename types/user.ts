@@ -9,6 +9,7 @@ import {
   DocumentData,
   DocumentReference,
   Transaction,
+  setDoc,
   getDocs,
   query,
   arrayRemove,
@@ -114,10 +115,15 @@ export class User extends LazyObject {
    * @param content: the post or comment to be reported
    */
   public async addReport(content: Post | Comment | User) {
+
+    // check that the content to be reported isn't from an employee/manager, we don't want to automod them
+    if (await (await content.getAuthor()).getStatus() >= UserStatus.Employee)
+      return Promise.reject('Cant report an employees content');
+
     if (!content.hasData) await content.getData();
 
-    // if already reported, return
-    if (await this.alreadyReported(content)) return;
+    // if already reported or already has a significant number of reports (arbitrary), return
+    if (await this.alreadyReported(content) || content.reports?.length! > 7) return;
 
     // update client side
     content.reports?.push(this);
@@ -140,6 +146,7 @@ export class User extends LazyObject {
 
   /** removeReport
    * Remove this user's report of specified content
+   * This is for users to remove their own reports, employees use removeAllReports.
    * @param content: the post or comment to be unreported
    */
   public async removeReport(content: Post | Comment) {
@@ -208,7 +215,7 @@ export class User extends LazyObject {
   }
 
   /** delete
-   * Delete a user. Requires that the user to be deleted is the current auth user.
+   * Delete this user's own account. Requires that the user to be deleted is the current auth user.
    * Deletes all relevant effects from the user such as:
    * - Posts and Comments
    * - Avatar
@@ -221,6 +228,7 @@ export class User extends LazyObject {
       return Promise.reject(
         'Cannot delete User to which you are not signed in.'
       );
+
     await this.getData(true);
     // Force update to have best non-guaranteed recent data
     await reauthenticateWithCredential(
@@ -260,6 +268,129 @@ export class User extends LazyObject {
     console.log('Document deleted');
     await deleteUser(auth.currentUser!);
     console.log('Auth deleted');
+  }
+
+  /** clearAllReports
+   * Clear all reports on this piece of content.
+   * @param content: the post, comment, or user to be cleared of all current reports
+   */
+  public async clearAllReports(content: Post | Comment | User) {
+    await this.checkIfSignedIn();
+    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+
+    content.getData();
+
+    // update client side by deleting all reports from the content's report array
+    content.reports = content.reports?.filter(
+      (report) => !refEqual(report.docRef!, this.docRef!)
+    );
+
+    // update server side: get all reports on this content from the reports collection
+    const q = await getDocs(
+      query(
+      collection(db, 'reports'),
+      where('content', '==', content.docRef!)
+      )
+    );
+    // run a transaction that deletes all reports found in this query
+    return runTransaction(db, async (transaction: Transaction) => {
+      q.docs.forEach((reportDoc) => {
+        // delete all from reports collection
+        transaction.delete(reportDoc.ref);
+        // delete all from the content's report array
+        transaction.update(content.docRef!, {
+          reports: arrayRemove(reportDoc.data().reporter),
+        });
+      });
+    });
+  }
+
+  /** deleteReportedContent
+   * Delete a piece of reported content, as well as its reports.
+   * This doesn't ban users.
+   * Employees should specify a reason as to why they took action, this will be held in a modHistory collection.
+   * @param content: the post, comment, or user to be cleared of all current reports
+   */
+  public async deleteReportedContent(content: Post | Comment | User, modReason: string) {
+    await this.checkIfSignedIn();
+    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+
+    if (!content.hasData) await content.getData();
+
+    this.clearAllReports(content);
+    // if content is a post or comment, delete it.
+    if (content instanceof Post || content instanceof Comment) content.delete();
+    // if content is a user, remove their avatar & bio & displayname.
+    else if (content instanceof User) {
+      content.deleteAvatar();
+      content.setBio("My profile content got deleted by a moderator and I am so embarrassed.");
+      content.setDisplayName("Disappointment");
+    }
+
+    // add a modHistory entry
+    const modHistoryDocRef = doc(db, 'modHistory');
+    return setDoc(modHistoryDocRef, {
+      userModerated: (await content.getAuthor()).username,
+      userEmail: (await content.getAuthor()).email,
+      mod: this.docRef,
+      modReason: modReason,
+      timestamp: serverTimestamp()
+    });
+  }
+
+  /** banUser
+   * Ban a user, as well as delete all their content. Keeps their account/email in auth.
+   * Employees should specify a reason as to why they took action, this will be held in a modHistory collection.
+   * @param user: the user to be banned
+   * @param modReason: the reason for the ban
+   * @param password: the user's auth password. Required by auth.
+   */
+  public async banUser(user: User, modReason: string, password: string) {
+    await this.checkIfSignedIn();
+    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, password)
+    );
+
+    user.getData();
+
+    // delete all content by specified user WITHOUT deleteing their account
+    const preTasks: Promise<any>[] = [];
+
+    if (user.avatar && !user.avatar.pathEqual(DEFAULT_AVATAR_PATH))
+      preTasks.push(deleteObject(user.avatar.getStorageRef()));
+
+    await Promise.all(preTasks);
+    console.log('Pre-tasks done');
+
+    // Now, all comments and posts we've ever made have *probably* been deleted.
+    // However, to be sure, we'll collect some tasks to do after the main transaction.
+    await runTransaction(db, async (transaction) => {
+      // Definitions
+      const cacheDocRef = doc(db, 'caches', 'users');
+
+      // Reads
+      await user.updateWithTransaction(transaction);
+
+      // Writes
+      transaction.update(cacheDocRef, {
+        allUsers: arrayRemove({
+          username: user.username!,
+          displayName: user.displayName!,
+          ref: user.docRef!,
+        }),
+      });
+    });
+    console.log('Main transaction done');
+
+    // update user status to banned
+    await runTransaction(db, async (transaction: Transaction) => {
+      await user.updateWithTransaction(transaction);
+      user.status = UserStatus.Banned;
+      transaction.update(user.docRef!, { status: UserStatus.Banned });
+    });
   }
 
   /** approveOtherUser
@@ -627,6 +758,14 @@ export class User extends LazyObject {
   }
 
   // ======================== Trivial Getters Below ========================
+
+  /** getAuthor
+   * @returns this user :)
+   * @remarks this is here to make User work cleanly with reporting functions, avoids ternary operators
+   */
+  public getAuthor() {
+    return this;
+  }
 
   /** getNoSpoilers
    * @returns true if the user doesn't want spoilers
