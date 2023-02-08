@@ -333,7 +333,7 @@ export class User extends LazyObject {
       userModerated: (await content.getAuthor()).username,
       userEmail: (await content.getAuthor()).email,
       mod: this.docRef,
-      modReason: modReason,
+      modReason: 'Deleted content:' + modReason,
       timestamp: serverTimestamp()
     });
   }
@@ -391,6 +391,16 @@ export class User extends LazyObject {
       user.status = UserStatus.Banned;
       transaction.update(user.docRef!, { status: UserStatus.Banned });
     });
+
+    // add a modHistory entry
+    const modHistoryDocRef = doc(db, 'modHistory');
+    return setDoc(modHistoryDocRef, {
+      userModerated: user,
+      userEmail: user.getEmail(),
+      mod: this.docRef,
+      modReason: 'Banned user:' + modReason,
+      timestamp: serverTimestamp()
+    });
   }
 
   /** approveOtherUser
@@ -413,6 +423,16 @@ export class User extends LazyObject {
         other.status = UserStatus.Approved;
         transaction.update(other.docRef!, { status: UserStatus.Approved });
       }
+
+      // add a modHistory entry
+      const modHistoryDocRef = doc(db, 'modHistory');
+      return setDoc(modHistoryDocRef, {
+        userModerated: other,
+        userEmail: other.getEmail(),
+        mod: this.docRef,
+        modReason: 'Promoted this user to approved.',
+        timestamp: serverTimestamp()
+      });
     });
   }
 
@@ -436,6 +456,16 @@ export class User extends LazyObject {
         other.status = UserStatus.Employee;
         transaction.update(other.docRef!, { status: UserStatus.Employee });
       }
+
+      // add a modHistory entry
+      const modHistoryDocRef = doc(db, 'modHistory');
+      return setDoc(modHistoryDocRef, {
+        userModerated: other,
+        userEmail: other.getEmail(),
+        mod: this.docRef,
+        modReason: 'Promoted this user to employee.',
+        timestamp: serverTimestamp()
+      });
     });
   }
 
@@ -468,6 +498,16 @@ export class User extends LazyObject {
           transaction.update(this.docRef!, { status: UserStatus.Employee });
         }
       }
+
+      // add a modHistory entry
+      const modHistoryDocRef = doc(db, 'modHistory');
+      return setDoc(modHistoryDocRef, {
+        userModerated: other,
+        userEmail: other.getEmail(),
+        mod: this.docRef,
+        modReason: 'Promoted this user to manager.',
+        timestamp: serverTimestamp()
+      });
     });
   }
 
@@ -491,6 +531,16 @@ export class User extends LazyObject {
         other.status = UserStatus.Approved;
         transaction.update(other.docRef!, { status: UserStatus.Approved });
       }
+
+      // add a modHistory entry
+      const modHistoryDocRef = doc(db, 'modHistory');
+      return setDoc(modHistoryDocRef, {
+        userModerated: other,
+        userEmail: other.getEmail(),
+        mod: this.docRef,
+        modReason: 'Demoted this employee to approved.',
+        timestamp: serverTimestamp()
+      });
     });
   }
 
@@ -515,6 +565,16 @@ export class User extends LazyObject {
         other.status = UserStatus.Verified;
         transaction.update(other.docRef!, { status: UserStatus.Verified });
       }
+
+      // add a modHistory entry
+      const modHistoryDocRef = doc(db, 'modHistory');
+      return setDoc(modHistoryDocRef, {
+        userModerated: other,
+        userEmail: other.getEmail(),
+        mod: this.docRef,
+        modReason: 'Demoted this user to verified.',
+        timestamp: serverTimestamp()
+      });
     });
   }
 
