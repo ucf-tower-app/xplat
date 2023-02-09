@@ -32,7 +32,7 @@ import {
 } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { DEFAULT_AVATAR_PATH, auth, db, storage } from '../Firebase';
+import { DEFAULT_AVATAR_PATH, DEFAULT_BIO, DEFAULT_DISPLAY_NAME, auth, db, storage } from '../Firebase';
 import { isKnightsEmail, validDisplayname } from '../api';
 import {
   ArrayCursor,
@@ -739,56 +739,39 @@ export class User extends LazyObject {
   }
 
   /** hideProfileContent
-   * Client-side setting of profile content to be default avatar & under review.
+   * Client-side setting of profile content to be default avatar & under review. 
+   * No public shaming like "under review", just set to defaults.
    */
   public async hideProfileContent() {
     if (!this.hasData) await this.getData();
     this.avatar = new LazyStaticImage(DEFAULT_AVATAR_PATH);
-    this.bio = "Profile content is under review.";
-    this.displayName = "Profile under review";
+    this.bio = "I'm a new climber!";
+    this.displayName = "Tower Climber";
   }
 
   // ======================== Fetchers and Builders ========================
 
   public async fetch() {
-    if (await this.checkShouldBeHidden())
-      return {
-        docRefId: this.docRef!.id,
-        username: await this.getUsername(),
-        email: await this.getEmail(),
-        status: await this.getStatus(),
-        displayName: "Profile under review",
-        bio: "Profile content is under review.",
-        avatarUrl: await getDownloadURL(ref(storage, DEFAULT_AVATAR_PATH)),
-        followingList: this.following ?? [],
-        totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
-        bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
-        bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
-        totalSends: await this.getTotalSends(),
-        postsCursor: this.getPostsCursor(),
-        followersCursor: this.getFollowersCursor(),
-        followingCursor: await this.getFollowingCursor(),
-        userObject: this,
-      } as FetchedUser;
-    else
-      return {
-        docRefId: this.docRef!.id,
-        username: await this.getUsername(),
-        email: await this.getEmail(),
-        status: await this.getStatus(),
-        displayName: await this.getDisplayName(),
-        bio: await this.getBio(),
-        avatarUrl: await this.getAvatarUrl(),
-        followingList: this.following ?? [],
-        totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
-        bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
-        bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
-        totalSends: await this.getTotalSends(),
-        postsCursor: this.getPostsCursor(),
-        followersCursor: this.getFollowersCursor(),
-        followingCursor: await this.getFollowingCursor(),
-        userObject: this,
-      } as FetchedUser;
+    let shouldBeHidden: Boolean = await this.checkShouldBeHidden();
+
+    return {
+      docRefId: this.docRef!.id,
+      username: await this.getUsername(),
+      email: await this.getEmail(),
+      status: await this.getStatus(),
+      displayName: shouldBeHidden ? DEFAULT_DISPLAY_NAME : await this.getDisplayName(),
+      bio: shouldBeHidden ? DEFAULT_BIO : await this.getBio(),
+      avatarUrl: shouldBeHidden ? getDownloadURL(ref(storage, DEFAULT_AVATAR_PATH)) : await this.getAvatarUrl(),
+      followingList: this.following ?? [],
+      totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
+      bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
+      bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
+      totalSends: await this.getTotalSends(),
+      postsCursor: this.getPostsCursor(),
+      followersCursor: this.getFollowersCursor(),
+      followingCursor: await this.getFollowingCursor(),
+      userObject: this,
+    } as FetchedUser;
   }
 
   public buildFetcher() {
@@ -798,7 +781,7 @@ export class User extends LazyObject {
   public static buildFetcherFromDocRefId(docRefId: string) {
     return new User(doc(db, 'users', docRefId)).buildFetcher();
   }
-  
+
   /** toggleNoSpoilers
    * Toggle whether or not the user wants spoilers.
    * @remarks use getNoSpoilers to get the current value
