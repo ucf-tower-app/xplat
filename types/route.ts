@@ -118,9 +118,7 @@ function gradeToDisplayString(grade: number, type: RouteType) {
     if (grade === 40) return 'VB';
     return 'V' + Math.round((grade - 50) / 10);
   } else if (type == RouteType.Competition) {
-    return String.fromCharCode(
-      65 /*A = 65*/ + Math.round((grade - 50) / 20) - 1
-    );
+    return String.fromCharCode(65 /*A = 65*/ + Math.round((grade - 50) / 20));
   } else if (type == RouteType.Traverse) {
     return ['Beginner', 'Intermediate', 'Advanced'][
       Math.round((grade - 50) / 20)

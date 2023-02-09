@@ -37,7 +37,7 @@ test('leadclimb strings are properly converted to their RouteClassifier', () => 
   expect(convertLeadclimbStringToClassifier('5.7A').rawgrade).toBe(67);
   expect(convertLeadclimbStringToClassifier('5.7B').rawgrade).toBe(69);
   expect(convertLeadclimbStringToClassifier('5.7C').rawgrade).toBe(71);
-  expect(convertLeadclimbStringToClassifier('5.7D').rawgrade).toBe(72);
+  expect(convertLeadclimbStringToClassifier('5.7D').rawgrade).toBe(73);
 });
 
 test('competition strings are properly converted to their RouteClassifier', () => {

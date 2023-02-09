@@ -253,6 +253,6 @@ export function convertLeadclimbStringToClassifier(leadclimbString: string) {
 export function convertCompetitionStringToClassifier(
   competitionString: string
 ) {
-  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
-  return new RouteClassifier(rawgrade, RouteType.Competition);
+  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0);
+  return new RouteClassifier(rawgrade * 20 + 50, RouteType.Competition);
 }
