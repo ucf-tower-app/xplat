@@ -48,6 +48,7 @@ export type FetchedPost = {
 
   postObject: Post;
   isSend: boolean;
+  shouldBeHidden: boolean;
   routeInfo?: { name: string; grade: string };
 };
 
@@ -164,6 +165,7 @@ export class Post extends LazyObject {
         : undefined,
       postObject: this,
       isSend: await this.isSend(),
+      shouldBeHidden: await this.checkShouldBeHidden(),
       routeInfo: this.routeInfo,
     } as FetchedPost;
   }
