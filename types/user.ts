@@ -9,19 +9,19 @@ import {
   DocumentData,
   DocumentReference,
   Transaction,
-  setDoc,
-  getDocs,
-  query,
   arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
   doc,
+  getDocs,
   orderBy,
+  query,
   refEqual,
   runTransaction,
-  updateDoc,
   serverTimestamp,
+  setDoc,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import {
@@ -46,7 +46,6 @@ import {
   Send,
   UserStatus,
   containsRef,
-  removeRef,
 } from '../types';
 
 export interface FetchedUser {
@@ -74,6 +73,7 @@ export class User extends LazyObject {
 
   // Filled with defaults if not present when getting data
   public following?: User[];
+  public followers?: User[];
   public avatar?: LazyStaticImage;
   public totalPostSizeInBytes?: number;
   public totalSends?: Map<RouteType, number>;
@@ -89,6 +89,9 @@ export class User extends LazyObject {
     this.status = data.status as UserStatus;
 
     this.following = (data.following ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.followers = (data.followers ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
 
@@ -115,15 +118,15 @@ export class User extends LazyObject {
    * @param content: the post or comment to be reported
    */
   public async addReport(content: Post | Comment | User) {
-
     // check that the content to be reported isn't from an employee/manager, we don't want to automod them
-    if (await (await content.getAuthor()).getStatus() >= UserStatus.Employee)
+    if ((await (await content.getAuthor()).getStatus()) >= UserStatus.Employee)
       return Promise.reject('Cant report an employees content');
 
     if (!content.hasData) await content.getData();
 
     // if already reported or already has a significant number of reports (arbitrary), return
-    if (await this.alreadyReported(content) || content.reports?.length! > 7) return;
+    if ((await this.alreadyReported(content)) || content.reports?.length! > 7)
+      return;
 
     // update client side
     content.reports?.push(this);
@@ -134,7 +137,8 @@ export class User extends LazyObject {
     return runTransaction(db, async (transaction: Transaction) => {
       transaction.set(newReportDocRef, {
         reporter: this.docRef!,
-        reported: (content instanceof User ? content.getUsername() : content.getAuthor()),
+        reported:
+          content instanceof User ? content.getUsername() : content.getAuthor(),
         timestamp: serverTimestamp(),
         content: content.docRef!,
       });
@@ -163,9 +167,9 @@ export class User extends LazyObject {
     // update server side
     const q = await getDocs(
       query(
-      collection(db, 'reports'),
-      where('reporter', '==', this.docRef!),
-      where('content', '==', content.docRef!)
+        collection(db, 'reports'),
+        where('reporter', '==', this.docRef!),
+        where('content', '==', content.docRef!)
       )
     );
     const reportDocRef = q.docs[0].ref;
@@ -178,9 +182,9 @@ export class User extends LazyObject {
   }
 
   /** alreadyReported
-  * Checks if this  user has already reported the specified content
-  * @returns true if this user has already reported the content, false otherwise
-  */
+   * Checks if this  user has already reported the specified content
+   * @returns true if this user has already reported the content, false otherwise
+   */
   public async alreadyReported(content: Post | Comment | User) {
     if (!content.hasData) await content.getData();
     return containsRef(content.reports!, this);
@@ -197,8 +201,13 @@ export class User extends LazyObject {
     // might as well do it now.
     if (!this.hasData) await this.getData();
     if (containsRef(this.following!, other)) return;
-    this.following!.push(other);
-    return updateDoc(this.docRef!, { following: arrayUnion(other.docRef) });
+
+    return Promise.all([
+      updateDoc(this.docRef!, {
+        following: arrayUnion(other.docRef),
+      }).then(() => this.following!.push(other)),
+      updateDoc(other.docRef!, { followers: arrayUnion(this.docRef) }),
+    ]);
   }
 
   /** unfollowUser
@@ -210,8 +219,12 @@ export class User extends LazyObject {
     // If this user has data and their following array doesn't contain the other user, return
     if (!this.hasData) await this.getData();
     if (!containsRef(this.following!, other)) return;
-    removeRef(this.following!, other);
-    return updateDoc(this.docRef!, { following: arrayRemove(other.docRef) });
+    return Promise.all([
+      updateDoc(this.docRef!, {
+        following: arrayRemove(other.docRef),
+      }).then(() => this.following!.push(other)),
+      updateDoc(other.docRef!, { followers: arrayRemove(this.docRef) }),
+    ]);
   }
 
   /** delete
@@ -261,6 +274,11 @@ export class User extends LazyObject {
           ref: this.docRef!,
         }),
       });
+      this.followers?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          following: arrayRemove(this.docRef!),
+        })
+      );
     });
     console.log('Main transaction done');
 
@@ -276,7 +294,8 @@ export class User extends LazyObject {
    */
   public async clearAllReports(content: Post | Comment | User) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee)
+      return Promise.reject('Not an employee, cant moderate!');
 
     content.getData();
 
@@ -287,10 +306,7 @@ export class User extends LazyObject {
 
     // update server side: get all reports on this content from the reports collection
     const q = await getDocs(
-      query(
-      collection(db, 'reports'),
-      where('content', '==', content.docRef!)
-      )
+      query(collection(db, 'reports'), where('content', '==', content.docRef!))
     );
     // run a transaction that deletes all reports found in this query
     return runTransaction(db, async (transaction: Transaction) => {
@@ -311,9 +327,13 @@ export class User extends LazyObject {
    * Employees should specify a reason as to why they took action, this will be held in a modHistory collection.
    * @param content: the post, comment, or user to be cleared of all current reports
    */
-  public async deleteReportedContent(content: Post | Comment | User, modReason: string) {
+  public async deleteReportedContent(
+    content: Post | Comment | User,
+    modReason: string
+  ) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee)
+      return Promise.reject('Not an employee, cant moderate!');
 
     if (!content.hasData) await content.getData();
 
@@ -323,8 +343,10 @@ export class User extends LazyObject {
     // if content is a user, remove their avatar & bio & displayname.
     else if (content instanceof User) {
       content.deleteAvatar();
-      content.setBio("My profile content got deleted by a moderator and I am so embarrassed.");
-      content.setDisplayName("Disappointment");
+      content.setBio(
+        'My profile content got deleted by a moderator and I am so embarrassed.'
+      );
+      content.setDisplayName('Disappointment');
     }
 
     // add a modHistory entry
@@ -334,7 +356,7 @@ export class User extends LazyObject {
       userEmail: (await content.getAuthor()).email,
       mod: this.docRef,
       modReason: modReason,
-      timestamp: serverTimestamp()
+      timestamp: serverTimestamp(),
     });
   }
 
@@ -347,7 +369,8 @@ export class User extends LazyObject {
    */
   public async banUser(user: User, modReason: string, password: string) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee)
+      return Promise.reject('Not an employee, cant moderate!');
 
     await reauthenticateWithCredential(
       auth.currentUser!,
@@ -725,6 +748,7 @@ export class User extends LazyObject {
       status: await this.getStatus(),
       avatarUrl: await this.getAvatarUrl(),
       followingList: this.following ?? [],
+      followersList: this.followers ?? [],
       totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
       bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
       bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
@@ -743,7 +767,7 @@ export class User extends LazyObject {
   public static buildFetcherFromDocRefId(docRefId: string) {
     return new User(doc(db, 'users', docRefId)).buildFetcher();
   }
-  
+
   /** toggleNoSpoilers
    * Toggle whether or not the user wants spoilers.
    * @remarks use getNoSpoilers to get the current value
@@ -754,7 +778,7 @@ export class User extends LazyObject {
 
     return updateDoc(this.docRef!, {
       noSpoilers: !(await this.getNoSpoilers()),
-    }).then(() => (this.noSpoilers = !(this.noSpoilers!)));
+    }).then(() => (this.noSpoilers = !this.noSpoilers!));
   }
 
   // ======================== Trivial Getters Below ========================
