@@ -128,6 +128,13 @@ export class User extends LazyObject {
     // update client side
     content.reports?.push(this);
 
+    // hide user content if they have 3+ reports. This won't keep them from changing it back, but should be a decent short-term solution.
+    if (content instanceof User && content.reports?.length! >= 3) {
+      content.deleteAvatar();
+      content.setBio("Profile content is under review.");
+      content.setDisplayName("Under Review");
+    }
+
     // update server side
     const newReportDocRef = doc(collection(db, 'reports'));
 
