@@ -32,7 +32,7 @@ import {
 } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { DEFAULT_AVATAR_PATH, auth, db, storage } from '../Firebase';
+import { DEFAULT_AVATAR_PATH, DEFAULT_BIO, DEFAULT_DISPLAY_NAME, auth, db, storage } from '../Firebase';
 import { isKnightsEmail, validDisplayname } from '../api';
 import {
   ArrayCursor,
@@ -683,6 +683,22 @@ export class User extends LazyObject {
     });
   }
 
+  /** setAvatarToDefault
+   * Set this user's avatar to the default avatar.
+   * For functions like reporting a user where we don't want to remove their reported avatar from the DB yet
+   */
+  public async setAvatarToDefault() {
+    await this.checkIfSignedIn();
+
+    return runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
+      this.avatar = new LazyStaticImage(DEFAULT_AVATAR_PATH);
+      transaction.update(this.docRef!, {
+        avatar: DEFAULT_AVATAR_PATH,
+      });
+    });
+  }
+
   public async setBio(bio: string) {
     await this.checkIfSignedIn();
     return updateDoc(this.docRef!, { bio: bio }).then(() => (this.bio = bio));
@@ -736,17 +752,39 @@ export class User extends LazyObject {
     }
   }
 
+  /** checkShouldBeHidden
+   * Checks if this user's avatar, bio, and display name should be hidden.
+   * @returns true if this content should be hidden, false if not
+   */
+  public async checkShouldBeHidden() {
+    if (!this.hasData) await this.getData();
+    return this.reports!.length >= 5;
+  }
+
+  /** hideProfileContent
+   * Client-side setting of profile content to be default avatar & under review. 
+   * No public shaming like "under review", just set to defaults.
+   */
+  public async hideProfileContent() {
+    if (!this.hasData) await this.getData();
+    this.avatar = new LazyStaticImage(DEFAULT_AVATAR_PATH);
+    this.bio = "I'm a new climber!";
+    this.displayName = "Tower Climber";
+  }
+
   // ======================== Fetchers and Builders ========================
 
   public async fetch() {
+    let shouldBeHidden: Boolean = await this.checkShouldBeHidden();
+
     return {
       docRefId: this.docRef!.id,
       username: await this.getUsername(),
       email: await this.getEmail(),
-      displayName: await this.getDisplayName(),
-      bio: await this.getBio(),
       status: await this.getStatus(),
-      avatarUrl: await this.getAvatarUrl(),
+      displayName: shouldBeHidden ? DEFAULT_DISPLAY_NAME : await this.getDisplayName(),
+      bio: shouldBeHidden ? DEFAULT_BIO : await this.getBio(),
+      avatarUrl: shouldBeHidden ? getDownloadURL(ref(storage, DEFAULT_AVATAR_PATH)) : await this.getAvatarUrl(),
       followingList: this.following ?? [],
       followersList: this.followers ?? [],
       totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),

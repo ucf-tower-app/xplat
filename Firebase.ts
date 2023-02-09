@@ -13,3 +13,5 @@ export const auth = getAuth();
 export const storage = getStorage();
 
 export const DEFAULT_AVATAR_PATH = 'avatars/climber.png';
+export const DEFAULT_BIO = "I'm a new climber!";
+export const DEFAULT_DISPLAY_NAME = 'Tower Climber';
