@@ -128,17 +128,6 @@ export class User extends LazyObject {
     // update client side
     content.reports?.push(this);
 
-    // hide user content if they have 3+ reports. This won't keep them from changing it back, but should be a decent short-term solution.
-    if (content instanceof User && content.reports?.length! >= 3) {
-      // todo make snapshot of user's content pre-shadowswap.
-      content.setAvatarToDefault();
-      content.setBio("Profile content is under review.");
-      content.setDisplayName("Under Review");
-
-      // todo return runTransaction on a snapshot of the user's content pre-shadowswap. This will show employees their reported content.
-      // todo the issue here is that the snapshot is gonna be hard to delete after. On clearAllReports or deleteReportedContent or banUser we'll need to check if snapshot, and if so, delete that too.
-    }
-
     // update server side
     const newReportDocRef = doc(collection(db, 'reports'));
 
@@ -738,6 +727,25 @@ export class User extends LazyObject {
     } else {
       return this.avatar!.getImageUrl();
     }
+  }
+
+  /** checkShouldBeHidden
+   * Checks if this user's avatar, bio, and display name should be hidden.
+   * @returns true if this content should be hidden, false if not
+   */
+  public async checkShouldBeHidden() {
+    if (!this.hasData) await this.getData();
+    return this.reports!.length >= 3;
+  }
+
+  /** hideProfileContent
+   * Client-side setting of profile content to be default avatar & under review.
+   */
+  public async hideProfileContent() {
+    if (!this.hasData) await this.getData();
+    this.avatar = new LazyStaticImage(DEFAULT_AVATAR_PATH);
+    this.bio = "Profile content is under review.";
+    this.displayName = "Profile under review";
   }
 
   // ======================== Fetchers and Builders ========================
