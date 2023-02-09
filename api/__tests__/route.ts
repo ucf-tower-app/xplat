@@ -30,10 +30,14 @@ test('toprope strings are properly converted to their RouteClassifier', () => {
 });
 
 test('leadclimb strings are properly converted to their RouteClassifier', () => {
-  expect(convertLeadclimbStringToClassifier('5.6-').rawgrade).toBe(59);
+  expect(convertLeadclimbStringToClassifier('5.6-').rawgrade).toBe(58);
   expect(convertLeadclimbStringToClassifier('5.6').rawgrade).toBe(60);
-  expect(convertLeadclimbStringToClassifier('5.6+').rawgrade).toBe(61);
+  expect(convertLeadclimbStringToClassifier('5.6+').rawgrade).toBe(62);
   expect(convertLeadclimbStringToClassifier('5.7').rawgrade).toBe(70);
+  expect(convertLeadclimbStringToClassifier('5.7A').rawgrade).toBe(67);
+  expect(convertLeadclimbStringToClassifier('5.7B').rawgrade).toBe(69);
+  expect(convertLeadclimbStringToClassifier('5.7C').rawgrade).toBe(71);
+  expect(convertLeadclimbStringToClassifier('5.7D').rawgrade).toBe(72);
 });
 
 test('competition strings are properly converted to their RouteClassifier', () => {
