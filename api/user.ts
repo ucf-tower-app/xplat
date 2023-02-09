@@ -234,3 +234,20 @@ export async function getUserSubstringMatcher() {
 //     .filter((obj: any | undefined) => obj !== undefined);
 //   return setDoc(doc(db, 'caches', 'users'), { allUsers: newMap });
 // }
+
+// export async function __INTERNAL__addRetroFollowers() {
+//   const usersCursor = new QueryCursor(User, 5, collection(db, 'users'));
+//   return usersCursor
+//     .________getAll_CLOWNTOWN_LOTS_OF_READS()
+//     .then((users) =>
+//       users.forEach((user) =>
+//         user
+//           .getData()
+//           .then(() =>
+//             user.following?.forEach((follow) =>
+//               updateDoc(follow.docRef!, { followers: arrayUnion(user.docRef!) })
+//             )
+//           )
+//       )
+//     );
+// }
