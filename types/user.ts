@@ -32,7 +32,14 @@ import {
 } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { DEFAULT_AVATAR_PATH, DEFAULT_BIO, DEFAULT_DISPLAY_NAME, auth, db, storage } from '../Firebase';
+import {
+  DEFAULT_AVATAR_PATH,
+  DEFAULT_BIO,
+  DEFAULT_DISPLAY_NAME,
+  auth,
+  db,
+  storage,
+} from '../Firebase';
 import { isKnightsEmail, validDisplayname } from '../api';
 import {
   ArrayCursor,
@@ -46,6 +53,7 @@ import {
   Send,
   UserStatus,
   containsRef,
+  removeRef,
 } from '../types';
 
 export interface FetchedUser {
@@ -222,7 +230,7 @@ export class User extends LazyObject {
     return Promise.all([
       updateDoc(this.docRef!, {
         following: arrayRemove(other.docRef),
-      }).then(() => this.following!.push(other)),
+      }).then(() => removeRef(this.following!, other)),
       updateDoc(other.docRef!, { followers: arrayRemove(this.docRef) }),
     ]);
   }
@@ -762,14 +770,14 @@ export class User extends LazyObject {
   }
 
   /** hideProfileContent
-   * Client-side setting of profile content to be default avatar & under review. 
+   * Client-side setting of profile content to be default avatar & under review.
    * No public shaming like "under review", just set to defaults.
    */
   public async hideProfileContent() {
     if (!this.hasData) await this.getData();
     this.avatar = new LazyStaticImage(DEFAULT_AVATAR_PATH);
     this.bio = "I'm a new climber!";
-    this.displayName = "Tower Climber";
+    this.displayName = 'Tower Climber';
   }
 
   // ======================== Fetchers and Builders ========================
@@ -782,9 +790,13 @@ export class User extends LazyObject {
       username: await this.getUsername(),
       email: await this.getEmail(),
       status: await this.getStatus(),
-      displayName: shouldBeHidden ? DEFAULT_DISPLAY_NAME : await this.getDisplayName(),
+      displayName: shouldBeHidden
+        ? DEFAULT_DISPLAY_NAME
+        : await this.getDisplayName(),
       bio: shouldBeHidden ? DEFAULT_BIO : await this.getBio(),
-      avatarUrl: shouldBeHidden ? getDownloadURL(ref(storage, DEFAULT_AVATAR_PATH)) : await this.getAvatarUrl(),
+      avatarUrl: shouldBeHidden
+        ? getDownloadURL(ref(storage, DEFAULT_AVATAR_PATH))
+        : await this.getAvatarUrl(),
       followingList: this.following ?? [],
       followersList: this.followers ?? [],
       totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
