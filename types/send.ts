@@ -1,44 +1,88 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { DocumentData } from 'firebase/firestore';
-import { LazyObject } from './common';
-import { Route } from './types';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+import { LazyObject, Route, RouteClassifier, User } from '../types';
+
+export type FetchedSend = {
+  user: User;
+  route: Route;
+  timestamp: Date;
+  classifier: RouteClassifier;
+};
 
 export class Send extends LazyObject {
-  protected attempts: number | undefined;
-  protected timestamp: Date | undefined;
-  protected route: Route | undefined;
+  public user?: User;
+  public route?: Route;
+  public timestamp?: Date;
+  public classifier?: RouteClassifier;
 
-  protected initWithDocumentData(data: DocumentData): void {
-    this.attempts = data.attempts;
-    this.timestamp = data.timestamp;
+  public initWithDocumentData(data: DocumentData): void {
+    this.user = new User(data.user);
+    this.classifier = new RouteClassifier(data.rawgrade, data.type);
+    this.timestamp = new Date(
+      data.timestamp.seconds * 1000 + data.timestamp.nanoseconds / 1000000
+    );
     this.route = new Route(data.route);
 
     this.hasData = true;
   }
+  // ======================== Trivial Getters Below ========================
 
-  public async getAttempts() {
+  /** getUser
+   */
+  public async getUser() {
     if (!this.hasData) await this.getData();
-    return this.attempts!;
+    return this.user!;
   }
 
+  /** getClassifier
+   */
+  public async getClassifier() {
+    if (!this.hasData) await this.getData();
+    return this.classifier!;
+  }
+
+  /** getTimestamp
+   */
   public async getTimestamp() {
     if (!this.hasData) await this.getData();
     return this.timestamp!;
   }
 
+  /** getRoute
+   */
   public async getRoute() {
     if (!this.hasData) await this.getData();
     return this.route!;
   }
+
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    return {
+      user: await this.getUser(),
+      route: await this.getRoute(),
+      timestamp: await this.getTimestamp(),
+      classifier: await this.getClassifier(),
+    } as FetchedSend;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
 }
 
+
+
 export class SendMock extends Send {
-  constructor(attempts: number, timestamp: Date, route: Route) {
+  constructor(user: User, timestamp: Date, route: Route) {
     super();
-    this.attempts = attempts;
+    this.user = user;
     this.timestamp = timestamp;
     this.route = route;
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 }

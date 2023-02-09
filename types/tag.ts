@@ -1,23 +1,31 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { DocumentData } from 'firebase/firestore';
-import { LazyObject } from './common';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+import { LazyObject } from '../types';
 
 export class Tag extends LazyObject {
-  protected name: string | undefined;
-  protected description: string | undefined;
+  public name: string | undefined;
+  public description: string | undefined;
 
-  protected initWithDocumentData(data: DocumentData): void {
+  public initWithDocumentData(data: DocumentData): void {
     this.name = data.name;
     this.description = data.description;
 
     this.hasData = true;
   }
 
+  // ======================== Trivial Getters Below ========================
+
+  /** getName
+   */
   public async getName() {
     if (!this.hasData) await this.getData();
     return this.name!;
   }
 
+  /** getDescription
+   */
   public async getDescription() {
     if (!this.hasData) await this.getData();
     return this.description!;
@@ -31,5 +39,6 @@ export class TagMock extends Tag {
     this.description = description;
 
     this.hasData = true;
+    this._idMock = uuidv4();
   }
 }

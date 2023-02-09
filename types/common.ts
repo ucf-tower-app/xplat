@@ -1,6 +1,14 @@
-import { DocumentReference, DocumentData, getDoc } from 'firebase/firestore';
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+import {
+  DocumentData,
+  DocumentReference,
+  getDoc,
+  refEqual,
+  Transaction,
+} from 'firebase/firestore';
 
 export enum UserStatus {
+  Banned = -1,
   Unverified = 0,
   Verified = 1,
   Approved = 2,
@@ -9,26 +17,86 @@ export enum UserStatus {
   Developer = 5,
 }
 
+const invalidDocRefIds = new Set<string>();
+
+export function invalidateDocRefId(docRefId: string) {
+  invalidDocRefIds.add(docRefId);
+}
+
 export abstract class LazyObject {
   public docRef: DocumentReference<DocumentData> | undefined;
-  protected hasData: boolean;
+  public hasData: boolean;
+  public exists: boolean = true;
 
-  protected abstract initWithDocumentData(data: DocumentData): void;
+  public _idMock: string | undefined;
 
-  public async getData(): Promise<void> {
-    if (this.hasData) return Promise.resolve();
+  public getId() {
+    if (this.docRef !== undefined) {
+      return this.docRef.id;
+    } else if (this._idMock !== undefined) {
+      return this._idMock;
+    }
+
+    throw 'Cannot fetch ID from LazyObject with no docRef or idMock';
+  }
+
+  public isMock() {
+    return this.docRef === undefined;
+  }
+
+  public abstract initWithDocumentData(data: DocumentData): void;
+
+  public async getData(forceUpdate = false): Promise<void> {
+    if (this._idMock !== undefined) return; // No data for mocks
+
     if (this.docRef === undefined)
       return Promise.reject('Document reference is undefined');
 
-    const docSnap = await getDoc(this.docRef);
-    if (!docSnap.exists()) return Promise.reject('Doc snap does not exist');
+    if (!forceUpdate && this.hasData) {
+      if (invalidDocRefIds.has(this.docRef.id))
+        invalidDocRefIds.delete(this.docRef.id);
+      else return;
+    }
 
-    await this.initWithDocumentData(docSnap.data());
-    return Promise.resolve();
+    return getDoc(this.docRef).then((docSnap) => {
+      if (!docSnap.exists()) {
+        this.exists = false;
+        return Promise.reject('Document does not exist');
+      } else {
+        this.exists = true;
+        this.initWithDocumentData(docSnap.data());
+      }
+    });
+  }
+
+  public async updateWithTransaction(transaction: Transaction) {
+    const snap = await transaction.get(this.docRef!);
+    if (!snap.exists) {
+      this.exists = false;
+      return Promise.reject('Document does not exist');
+    }
+    this.exists = true;
+    this.initWithDocumentData(snap.data()!);
   }
 
   constructor(docRef: DocumentReference<DocumentData> | undefined = undefined) {
     this.docRef = docRef;
     this.hasData = false;
+  }
+}
+
+export function containsRef(array: LazyObject[], targ: LazyObject) {
+  return (
+    targ.docRef &&
+    array.some((obj) => obj.docRef && refEqual(obj.docRef, targ.docRef!))
+  );
+}
+
+export function removeRef(array: LazyObject[], targ: LazyObject) {
+  if (containsRef(array, targ)) {
+    const idx = array.findIndex(
+      (e) => e.docRef && refEqual(e.docRef, targ.docRef!)
+    );
+    array.splice(idx);
   }
 }
