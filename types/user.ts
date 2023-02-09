@@ -751,24 +751,44 @@ export class User extends LazyObject {
   // ======================== Fetchers and Builders ========================
 
   public async fetch() {
-    return {
-      docRefId: this.docRef!.id,
-      username: await this.getUsername(),
-      email: await this.getEmail(),
-      displayName: await this.getDisplayName(),
-      bio: await this.getBio(),
-      status: await this.getStatus(),
-      avatarUrl: await this.getAvatarUrl(),
-      followingList: this.following ?? [],
-      totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
-      bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
-      bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
-      totalSends: await this.getTotalSends(),
-      postsCursor: this.getPostsCursor(),
-      followersCursor: this.getFollowersCursor(),
-      followingCursor: await this.getFollowingCursor(),
-      userObject: this,
-    } as FetchedUser;
+    if (await this.checkShouldBeHidden())
+      return {
+        docRefId: this.docRef!.id,
+        username: await this.getUsername(),
+        email: await this.getEmail(),
+        status: await this.getStatus(),
+        displayName: "Profile under review",
+        bio: "Profile content is under review.",
+        avatarUrl: await getDownloadURL(ref(storage, DEFAULT_AVATAR_PATH)),
+        followingList: this.following ?? [],
+        totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
+        bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
+        bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
+        totalSends: await this.getTotalSends(),
+        postsCursor: this.getPostsCursor(),
+        followersCursor: this.getFollowersCursor(),
+        followingCursor: await this.getFollowingCursor(),
+        userObject: this,
+      } as FetchedUser;
+    else
+      return {
+        docRefId: this.docRef!.id,
+        username: await this.getUsername(),
+        email: await this.getEmail(),
+        status: await this.getStatus(),
+        displayName: await this.getDisplayName(),
+        bio: await this.getBio(),
+        avatarUrl: await this.getAvatarUrl(),
+        followingList: this.following ?? [],
+        totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
+        bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
+        bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
+        totalSends: await this.getTotalSends(),
+        postsCursor: this.getPostsCursor(),
+        followersCursor: this.getFollowersCursor(),
+        followingCursor: await this.getFollowingCursor(),
+        userObject: this,
+      } as FetchedUser;
   }
 
   public buildFetcher() {
