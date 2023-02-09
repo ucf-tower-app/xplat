@@ -130,9 +130,13 @@ export class User extends LazyObject {
 
     // hide user content if they have 3+ reports. This won't keep them from changing it back, but should be a decent short-term solution.
     if (content instanceof User && content.reports?.length! >= 3) {
-      content.deleteAvatar();
+      // todo make snapshot of user's content pre-shadowswap.
+      content.setAvatarToDefault();
       content.setBio("Profile content is under review.");
       content.setDisplayName("Under Review");
+
+      // todo return runTransaction on a snapshot of the user's content pre-shadowswap. This will show employees their reported content.
+      // todo the issue here is that the snapshot is gonna be hard to delete after. On clearAllReports or deleteReportedContent or banUser we'll need to check if snapshot, and if so, delete that too.
     }
 
     // update server side
@@ -663,6 +667,22 @@ export class User extends LazyObject {
       this.avatar = new LazyStaticImage('avatars/' + this.docRef!.id);
       transaction.update(this.docRef!, {
         avatar: 'avatars/' + this.docRef!.id,
+      });
+    });
+  }
+
+  /** setAvatarToDefault
+   * Set this user's avatar to the default avatar.
+   * For functions like reporting a user where we don't want to remove their reported avatar from the DB yet
+   */
+  public async setAvatarToDefault() {
+    await this.checkIfSignedIn();
+
+    return runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
+      this.avatar = new LazyStaticImage(DEFAULT_AVATAR_PATH);
+      transaction.update(this.docRef!, {
+        avatar: DEFAULT_AVATAR_PATH,
       });
     });
   }
