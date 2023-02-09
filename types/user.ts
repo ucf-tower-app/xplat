@@ -735,7 +735,7 @@ export class User extends LazyObject {
    */
   public async checkShouldBeHidden() {
     if (!this.hasData) await this.getData();
-    return this.reports!.length >= 3;
+    return this.reports!.length >= 5;
   }
 
   /** hideProfileContent
