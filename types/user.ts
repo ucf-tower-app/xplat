@@ -143,10 +143,10 @@ export class User extends LazyObject {
     const newReportDocRef = doc(collection(db, 'reports'));
 
     return runTransaction(db, async (transaction: Transaction) => {
+      const rep = await content.getAuthor();
       transaction.set(newReportDocRef, {
         reporter: this.docRef!,
-        reported:
-          content instanceof User ? content.getUsername() : content.getAuthor(),
+        reported: rep.docRef!,
         timestamp: serverTimestamp(),
         content: content.docRef!,
       });
