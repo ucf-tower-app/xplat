@@ -14,11 +14,11 @@ import {
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
 import {
+  NaturalRules,
   QueryCursor,
   Route,
   RouteClassifier,
   RouteStatus,
-  NaturalRules,
   RouteType,
   Tag,
   User,
@@ -193,31 +193,15 @@ export async function getArchivedRoutesSubstringMatcher() {
   return new SubstringMatcher<string>(names.data()!.names);
 }
 
-/** getAllBoulderClassifiers
- * Get list of all boulder classifiers
- */
-export function getAllBoulderClassifiers() {
-  return [-1, 0, 1, 2, 3, 4, 5, 6, 7].map(
-    (x) => new RouteClassifier(x, RouteType.Boulder)
-  );
-}
-
 /** convertBoulderStringToClassifier
  * Turns a boulder grade string into its classifier
  * @param boulderString: The boulder string to convert
  */
 export function convertBoulderStringToClassifier(boulderString: string) {
   const rawgrade = boulderString.endsWith('B')
-    ? -1
-    : parseInt(boulderString[boulderString.length - 1]);
+    ? 40
+    : parseInt(boulderString[boulderString.length - 1]) * 10 + 50;
   return new RouteClassifier(rawgrade, RouteType.Boulder);
-}
-
-/** getAllTraverseRouteClassifiers
- * Get list of all traverse classifiers
- */
-export function getAllTraverseRouteClassifiers() {
-  return [1, 2, 3, 4].map((x) => new RouteClassifier(x, RouteType.Traverse));
 }
 
 /** convertTraverseStringToClassifier
@@ -225,18 +209,11 @@ export function getAllTraverseRouteClassifiers() {
  * @param traverseString: The traverse string to convert
  */
 export function convertTraverseStringToClassifier(traverseString: string) {
-  const rawgrade = traverseString.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
-  return new RouteClassifier(rawgrade, RouteType.Traverse);
-}
-
-/** getAllTopropeRouteClassifiers
- * Get list of all toprope classifiers
- */
-export function getAllTopropeRouteClassifiers() {
-  return [
-    49, 50, 51, 59, 60, 61, 69, 70, 71, 79, 80, 81, 89, 90, 91, 99, 100, 101,
-    109, 110, 111, 119, 120, 121, 129, 130, 131,
-  ].map((x) => new RouteClassifier(x, RouteType.Toprope));
+  if (traverseString == 'Beginner')
+    return new RouteClassifier(50, RouteType.Traverse);
+  if (traverseString == 'Intermediate')
+    return new RouteClassifier(70, RouteType.Traverse);
+  else return new RouteClassifier(90, RouteType.Traverse);
 }
 
 /** convertTopropeStringToClassifier
@@ -245,19 +222,13 @@ export function getAllTopropeRouteClassifiers() {
  */
 export function convertTopropeStringToClassifier(topropeString: string) {
   let rawgrade = parseInt(topropeString.split('.')[1]) * 10;
-  if (topropeString.endsWith('-')) rawgrade--;
-  else if (topropeString.endsWith('+')) rawgrade++;
+  if (topropeString.endsWith('A')) rawgrade -= 3;
+  if (topropeString.endsWith('-')) rawgrade -= 2;
+  if (topropeString.endsWith('B')) rawgrade -= 1;
+  if (topropeString.endsWith('C')) rawgrade += 1;
+  if (topropeString.endsWith('+')) rawgrade += 2;
+  if (topropeString.endsWith('D')) rawgrade += 3;
   return new RouteClassifier(rawgrade, RouteType.Toprope);
-}
-
-/** getAllLeadclimbRouteClassifiers
- * Get list of all lead climb classifiers
- */
-export function getAllLeadclimbRouteClassifiers() {
-  return [
-    49, 50, 51, 59, 60, 61, 69, 70, 71, 79, 80, 81, 89, 90, 91, 99, 100, 101,
-    109, 110, 111, 119, 120, 121, 129, 130, 131,
-  ].map((x) => new RouteClassifier(x, RouteType.Leadclimb));
 }
 
 /** convertLeadclimbStringToClassifier
@@ -266,16 +237,13 @@ export function getAllLeadclimbRouteClassifiers() {
  */
 export function convertLeadclimbStringToClassifier(leadclimbString: string) {
   let rawgrade = parseInt(leadclimbString.split('.')[1]) * 10;
-  if (leadclimbString.endsWith('-')) rawgrade--;
-  else if (leadclimbString.endsWith('+')) rawgrade++;
+  if (leadclimbString.endsWith('A')) rawgrade -= 3;
+  if (leadclimbString.endsWith('-')) rawgrade -= 2;
+  if (leadclimbString.endsWith('B')) rawgrade -= 1;
+  if (leadclimbString.endsWith('C')) rawgrade += 1;
+  if (leadclimbString.endsWith('+')) rawgrade += 2;
+  if (leadclimbString.endsWith('D')) rawgrade += 3;
   return new RouteClassifier(rawgrade, RouteType.Leadclimb);
-}
-
-/** getAllCompetitionRouteClassifiers
- * Get list of all comp route classifiers
- */
-export function getAllCompetitionRouteClassifiers() {
-  return [1, 2, 3, 4].map((x) => new RouteClassifier(x, RouteType.Competition));
 }
 
 /** convertCompetitionStringToClassifier
@@ -285,18 +253,6 @@ export function getAllCompetitionRouteClassifiers() {
 export function convertCompetitionStringToClassifier(
   competitionString: string
 ) {
-  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
-  return new RouteClassifier(rawgrade, RouteType.Competition);
-}
-
-/** getAllRouteClassifiers
- * Get list of all route classifiers of all types
- */
-export function getAllRouteClassifiers() {
-  return getAllBoulderClassifiers().concat(
-    getAllTraverseRouteClassifiers(),
-    getAllLeadclimbRouteClassifiers(),
-    getAllCompetitionRouteClassifiers(),
-    getAllTopropeRouteClassifiers()
-  );
+  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0);
+  return new RouteClassifier(rawgrade * 20 + 50, RouteType.Competition);
 }
