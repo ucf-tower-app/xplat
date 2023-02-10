@@ -17,9 +17,10 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  updateDoc,
   where,
 } from 'firebase/firestore';
-import { auth, db } from '../Firebase';
+import { auth, db, functions_sendEmail } from '../Firebase';
 import { SubstringMatcher, User, UserStatus } from '../types';
 
 /** isKnightsEmail
@@ -152,6 +153,7 @@ export async function signIn(email: string, password: string) {
 }
 
 /** sendAuthEmail
+ * @deprecated The method should not be used. Use sendEmailCode instead.
  * Sends the verification email for the current signed in user
  * @throws if no auth user is signed in
  * @throws if the user has already verified their email
@@ -164,9 +166,45 @@ export async function sendAuthEmail() {
   } else return Promise.reject('Not signed in!');
 }
 
+/** sendEmailCode
+ * Generates a 6-digit email code and sends it to the auth user.
+ * @returns The code just sent to the user
+ * @throws If auth is not signed in
+ */
+export async function sendEmailCode() {
+  if (auth.currentUser === null) return Promise.reject('Not signed in!');
+  const code = Math.floor(100000 + Math.random() * 900000); // 6 digits, no leading zeros
+  return functions_sendEmail({
+    dest: auth.currentUser.email!,
+    code: code,
+  }).then(() => {
+    return code;
+  });
+}
+
+/** confirmEmailCode
+ * Sets a user's status according to the email they have confirmed they own
+ * @returns The relevant Tower User
+ */
+export async function confirmEmailCode() {
+  if (auth.currentUser === null) return Promise.reject('Not signed in!');
+  const user = getUserById(auth.currentUser.uid);
+  await updateDoc(user.docRef!, {
+    status: isKnightsEmail(auth.currentUser.email!)
+      ? UserStatus.Approved
+      : UserStatus.Verified,
+  });
+  return user;
+}
+
 // Because the authstate doesnt change when an email verification happens, we have to poll for it :/
 const timer = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-// eslint-disable-next-line @typescript-eslint/ban-types
+
+/**
+ * @deprecated Please use sendEmailCode and confirmEmailCode
+ * @param notifyVerified
+ * @returns
+ */
 export const startWaitForVerificationPoll = (
   notifyVerified: (user: User) => any
 ) => {
