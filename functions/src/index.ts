@@ -18,17 +18,20 @@ let transporter = nodemailer.createTransport({
 });
 
 exports.sendMail = functions.https.onRequest((req: any, res: any) => {
-  console.log(req);
   cors(req, res, () => {
     // getting dest email by query string
     const dest = req.query.dest;
+    const code = req.query.code;
 
     const mailOptions = {
-      from: 'Tower Team <info.towerapp@gmail.com>', // Something like: Jane Doe <janedoe@gmail.com>
+      from: 'Tower Team <info.towerapp@gmail.com>',
       to: dest,
-      subject: 'Confirm Email', // email subject
-      html: `<p style="font-size: 16px;">We're, uh, working on this part. Stay tuned.</p>
-            `, // email content in HTML
+      subject: 'Tower Email Verification Code',
+      html:
+        `<p style="font-size: 16px;">Thanks for using our app! Here's your verification code: ` +
+        code +
+        `</p>
+            `,
     };
 
     // returning result
