@@ -3,6 +3,7 @@ import {
   EmailAuthProvider,
   deleteUser,
   reauthenticateWithCredential,
+  updateEmail,
   updatePassword,
 } from 'firebase/auth';
 import {
@@ -575,6 +576,36 @@ export class User extends LazyObject {
     return updatePassword(auth.currentUser!, newPassword);
   }
 
+  public async changeEmail(
+    oldEmail: string,
+    newEmail: string,
+    password: string
+  ) {
+    await this.checkIfSignedIn();
+    await this.getData();
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(this.email!, password)
+    );
+    if (this.email! !== oldEmail)
+      return Promise.reject('Must provide the correct old email!');
+    if (this.status! === UserStatus.Manager)
+      return Promise.reject(
+        'Unable to delete manager account: Please ensure there are other manager accounts and demote your own before deleting.'
+      );
+    if (isKnightsEmail(oldEmail))
+      return Promise.reject(
+        "Unable to change an account's email which is using a knights email."
+      );
+
+    return updateEmail(auth.currentUser!, newEmail).then(() => {
+      updateDoc(this.docRef!, {
+        email: newEmail,
+        status: UserStatus.Unverified,
+      });
+    });
+  }
+
   /** getRecentSendsCursor
    * Get a QueryCursor for a User's sends ordered by most recent
    */
@@ -588,6 +619,11 @@ export class User extends LazyObject {
     );
   }
 
+  /**
+   * @deprecated Please don't use
+   * @param email \
+   * @param transaction
+   */
   public verifyEmailWithinTransaction(email: string, transaction: Transaction) {
     if (isKnightsEmail(email)) this.status = UserStatus.Approved;
     else this.status = UserStatus.Verified;

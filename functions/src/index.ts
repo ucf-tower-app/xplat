@@ -20,8 +20,8 @@ let transporter = nodemailer.createTransport({
 exports.sendMail = functions.https.onRequest((req: any, res: any) => {
   cors(req, res, () => {
     // getting dest email by query string
-    const dest = req.query.dest;
-    const code = req.query.code;
+    const dest = req.body.data.dest ?? req.query.dest;
+    const code = req.body.data.code ?? req.query.dest;
 
     const mailOptions = {
       from: 'Tower Team <info.towerapp@gmail.com>',
@@ -37,9 +37,20 @@ exports.sendMail = functions.https.onRequest((req: any, res: any) => {
     // returning result
     return transporter.sendMail(mailOptions, (erro: any, info: any) => {
       if (erro) {
-        return res.send(erro.toString());
+        return res.send(
+          JSON.stringify({
+            error: erro,
+            data: { recipient: dest, codeSent: code },
+          })
+        );
       }
-      return res.send('Sended');
+      return res.send(
+        JSON.stringify({
+          resp: 'Sent!',
+          info: info,
+          data: { recipient: dest, codeSent: code },
+        })
+      );
     });
   });
 });
