@@ -619,6 +619,11 @@ export class User extends LazyObject {
     );
   }
 
+  /**
+   * @deprecated Please don't use
+   * @param email \
+   * @param transaction
+   */
   public verifyEmailWithinTransaction(email: string, transaction: Transaction) {
     if (isKnightsEmail(email)) this.status = UserStatus.Approved;
     else this.status = UserStatus.Verified;
