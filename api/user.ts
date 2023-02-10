@@ -20,7 +20,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { auth, db, functions_sendEmail } from '../Firebase';
+import { auth, db, functions_sendMail } from '../Firebase';
 import { SubstringMatcher, User, UserStatus } from '../types';
 
 /** isKnightsEmail
@@ -174,7 +174,7 @@ export async function sendAuthEmail() {
 export async function sendEmailCode() {
   if (auth.currentUser === null) return Promise.reject('Not signed in!');
   const code = Math.floor(100000 + Math.random() * 900000); // 6 digits, no leading zeros
-  return functions_sendEmail({
+  return functions_sendMail({
     dest: auth.currentUser.email!,
     code: code,
   }).then(() => {

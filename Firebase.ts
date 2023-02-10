@@ -12,8 +12,8 @@ export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth();
 export const storage = getStorage();
-export const functions = getFunctions(app);
-export const functions_sendEmail = httpsCallable(functions, 'sendEmail');
+export const functions = getFunctions(app, 'us-central1');
+export const functions_sendMail = httpsCallable(functions, 'sendMail');
 
 export const DEFAULT_AVATAR_PATH = 'avatars/climber.png';
 export const DEFAULT_BIO = "I'm a new climber!";
