@@ -12,6 +12,7 @@ import { db } from '../Firebase';
 import { User } from '../types';
 
 const STRIDE = 3;
+const SENDS_STRIDE = 8;
 
 export function getIQParams_UserPosts(userDocRefId: string) {
   return {
@@ -89,13 +90,13 @@ export function getIQParams_UserSends(userDocRefId: string) {
             where('user', '==', doc(db, 'users', userDocRefId)),
             orderBy('timestamp', 'desc'),
             ...(pageParam !== undefined ? [startAfter(pageParam)] : []),
-            limit(STRIDE),
+            limit(SENDS_STRIDE),
           ]
         )
       ).then((snap) => snap.docs);
     },
     getNextPageParam: (lastPage: any) => {
-      if (lastPage.length < STRIDE) return undefined;
+      if (lastPage.length < SENDS_STRIDE) return undefined;
       else return lastPage[lastPage.length - 1];
     },
   };
