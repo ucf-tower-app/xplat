@@ -227,33 +227,45 @@ export const startWaitForVerificationPoll = (
   }
 };
 
+export type UserCacheData = {
+  username: string;
+  displayName: string;
+  ref: DocumentReference;
+}[];
+
+export async function getUserCache() {
+  return (await getDoc(doc(db, 'caches', 'users'))).data()!
+    .allUsers as UserCacheData;
+}
+
+export function buildUserCacheMap(userCache: UserCacheData) {
+  return new Map(
+    userCache.map((entry) => [
+      entry.ref.id,
+      { username: entry.username, displayName: entry.displayName },
+    ])
+  );
+}
+
 export interface UserSearchResult {
   username: string;
   displayName: string;
   user: User;
 }
-export async function getUserSubstringMatcher() {
-  const spread = new Map<string, UserSearchResult[]>();
-  (await getDoc(doc(db, 'caches', 'users')))
-    .data()!
-    .allUsers.forEach(
-      (obj: {
-        username: string;
-        displayName: string;
-        ref: DocumentReference;
-      }) => {
-        const res: UserSearchResult = {
-          username: obj.username,
-          displayName: obj.displayName,
-          user: new User(obj.ref),
-        };
-        if (!spread.has(obj.username)) spread.set(obj.username, []);
-        if (!spread.has(obj.displayName)) spread.set(obj.displayName, []);
-        spread.get(obj.username)?.push(res);
-        spread.get(obj.displayName)?.push(res);
-      }
-    );
 
+export function buildUserSubstringMatcher(cacheData: UserCacheData) {
+  const spread = new Map<string, UserSearchResult[]>();
+  cacheData.forEach((obj) => {
+    const res: UserSearchResult = {
+      username: obj.username,
+      displayName: obj.displayName,
+      user: new User(obj.ref),
+    };
+    if (!spread.has(obj.username)) spread.set(obj.username, []);
+    if (!spread.has(obj.displayName)) spread.set(obj.displayName, []);
+    spread.get(obj.username)?.push(res);
+    spread.get(obj.displayName)?.push(res);
+  });
   return new SubstringMatcher(spread);
 }
 
