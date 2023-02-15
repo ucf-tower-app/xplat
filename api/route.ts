@@ -204,6 +204,30 @@ export function convertBoulderStringToClassifier(boulderString: string) {
   return new RouteClassifier(rawgrade, RouteType.Boulder);
 }
 
+export function getAllTraverseRouteClassifiers() {
+  return ['Beginner', 'Intermediate', 'Advanced'].map(
+    convertTraverseStringToClassifier
+  );
+}
+
+export function getAllCompRouteClassifiers() {
+  return ['A', 'B', 'C', 'D'].map(convertCompetitionStringToClassifier);
+}
+
+export function getAllBoulderClassifiers() {
+  return ['VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7'].map(
+    convertBoulderStringToClassifier
+  );
+}
+
+export function getAllRopeDifficulties() {
+  return ['5.5', '5.6', '5.7', '5.8', '5.9', '5.10', '5.11', '5.12', '5.13'];
+}
+
+export function getAllRopeModifiers() {
+  return ['', '+', '-', 'A', 'B', 'C', 'D'];
+}
+
 /** convertTraverseStringToClassifier
  * Turns a traverse grade string into its classifier
  * @param traverseString: The traverse string to convert
