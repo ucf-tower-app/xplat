@@ -36,18 +36,21 @@ export function getRouteById(routeId: string) {
   return new Route(doc(db, 'routes', routeId));
 }
 
+export enum GetRouteByNameError {
+  NoSuchRoute = 'Failed to find the specified route',
+}
+
 /** getRouteByName
- * Returns a Firebase Route with the corresponding name, or undefined
+ * Returns a Firebase Route with the corresponding name
  * @param name: The Route's name
- * @remarks The returned Route is not guaranteed to have data in firebase.
- * This will result in subsequent getData() calls to throw.
+ * @throws if the specified route does not exist
  * @returns A Firebase Route, or undefined
  */
 export async function getRouteByName(name: string) {
   const q = await getDocs(
     query(collection(db, 'routes'), where('name', '==', name), limit(1))
   );
-  if (q.size === 0) return undefined;
+  if (q.size === 0) throw GetRouteByNameError.NoSuchRoute;
   const res = new Route(q.docs[0].ref);
   res.initWithDocumentData(q.docs[0].data());
   return res;
@@ -64,6 +67,10 @@ export interface CreateRouteArgs {
   color?: string;
   setterRawName?: string;
   naturalRules?: NaturalRules;
+}
+
+export enum CreateRouteError {
+  RouteNameExists = 'A route with this name already exists! Please choose another name.',
 }
 
 /** createRoute
@@ -93,7 +100,7 @@ export async function createRoute({
   naturalRules = undefined,
 }: CreateRouteArgs) {
   if ((await getRouteByName(name)) !== undefined)
-    return Promise.reject('Route with this name already exists!');
+    throw CreateRouteError.RouteNameExists;
   const newRouteDocRef = doc(collection(db, 'routes'));
   const newForumDocRef = doc(collection(db, 'forums'));
 

@@ -18,3 +18,4 @@ export const functions_sendMail = httpsCallable(functions, 'sendMail');
 export const DEFAULT_AVATAR_PATH = 'avatars/climber.png';
 export const DEFAULT_BIO = "I'm a new climber!";
 export const DEFAULT_DISPLAY_NAME = 'Tower Climber';
+export const MAX_USER_CONTENT_BYTES = 75000000; // 75 Meg

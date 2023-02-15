@@ -23,6 +23,15 @@ export function invalidateDocRefId(docRefId: string) {
   invalidDocRefIds.add(docRefId);
 }
 
+export enum GetIdError {
+  InvalidObject = 'Cannot fetch ID from LazyObject with no docRef or idMock',
+}
+
+export enum GetDataError {
+  UndefinedDocRef = 'Cannot get data for LazyObject with no docRef',
+  DocumentNotFound = 'Document does not exist!',
+}
+
 export abstract class LazyObject {
   public docRef: DocumentReference<DocumentData> | undefined;
   public hasData: boolean;
@@ -37,7 +46,7 @@ export abstract class LazyObject {
       return this._idMock;
     }
 
-    throw 'Cannot fetch ID from LazyObject with no docRef or idMock';
+    throw GetIdError.InvalidObject;
   }
 
   public isMock() {
@@ -49,8 +58,7 @@ export abstract class LazyObject {
   public async getData(forceUpdate = false): Promise<void> {
     if (this._idMock !== undefined) return; // No data for mocks
 
-    if (this.docRef === undefined)
-      return Promise.reject('Document reference is undefined');
+    if (this.docRef === undefined) throw GetDataError.UndefinedDocRef;
 
     if (!forceUpdate && this.hasData) {
       if (invalidDocRefIds.has(this.docRef.id))
@@ -61,7 +69,7 @@ export abstract class LazyObject {
     return getDoc(this.docRef).then((docSnap) => {
       if (!docSnap.exists()) {
         this.exists = false;
-        return Promise.reject('Document does not exist');
+        throw GetDataError.DocumentNotFound;
       } else {
         this.exists = true;
         this.initWithDocumentData(docSnap.data());
