@@ -17,9 +17,10 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  updateDoc,
   where,
 } from 'firebase/firestore';
-import { auth, db } from '../Firebase';
+import { auth, db, functions_sendMail } from '../Firebase';
 import { SubstringMatcher, User, UserStatus } from '../types';
 
 /** isKnightsEmail
@@ -152,6 +153,7 @@ export async function signIn(email: string, password: string) {
 }
 
 /** sendAuthEmail
+ * @deprecated The method should not be used. Use sendEmailCode instead.
  * Sends the verification email for the current signed in user
  * @throws if no auth user is signed in
  * @throws if the user has already verified their email
@@ -164,9 +166,45 @@ export async function sendAuthEmail() {
   } else return Promise.reject('Not signed in!');
 }
 
+/** sendEmailCode
+ * Generates a 6-digit email code and sends it to the auth user.
+ * @returns The code just sent to the user
+ * @throws If auth is not signed in
+ */
+export async function sendEmailCode() {
+  if (auth.currentUser === null) return Promise.reject('Not signed in!');
+  const code = Math.floor(100000 + Math.random() * 900000); // 6 digits, no leading zeros
+  return functions_sendMail({
+    dest: auth.currentUser.email!,
+    code: code,
+  }).then(() => {
+    return code;
+  });
+}
+
+/** confirmEmailCode
+ * Sets a user's status according to the email they have confirmed they own
+ * @returns The relevant Tower User
+ */
+export async function confirmEmailCode() {
+  if (auth.currentUser === null) return Promise.reject('Not signed in!');
+  const user = getUserById(auth.currentUser.uid);
+  await updateDoc(user.docRef!, {
+    status: isKnightsEmail(auth.currentUser.email!)
+      ? UserStatus.Approved
+      : UserStatus.Verified,
+  });
+  return user;
+}
+
 // Because the authstate doesnt change when an email verification happens, we have to poll for it :/
 const timer = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-// eslint-disable-next-line @typescript-eslint/ban-types
+
+/**
+ * @deprecated Please use sendEmailCode and confirmEmailCode
+ * @param notifyVerified
+ * @returns
+ */
 export const startWaitForVerificationPoll = (
   notifyVerified: (user: User) => any
 ) => {
@@ -189,33 +227,45 @@ export const startWaitForVerificationPoll = (
   }
 };
 
+export type UserCacheData = {
+  username: string;
+  displayName: string;
+  ref: DocumentReference;
+}[];
+
+export async function getUserCache() {
+  return (await getDoc(doc(db, 'caches', 'users'))).data()!
+    .allUsers as UserCacheData;
+}
+
+export function buildUserCacheMap(userCache: UserCacheData) {
+  return new Map(
+    userCache.map((entry) => [
+      entry.ref.id,
+      { username: entry.username, displayName: entry.displayName },
+    ])
+  );
+}
+
 export interface UserSearchResult {
   username: string;
   displayName: string;
   user: User;
 }
-export async function getUserSubstringMatcher() {
-  const spread = new Map<string, UserSearchResult[]>();
-  (await getDoc(doc(db, 'caches', 'users')))
-    .data()!
-    .allUsers.forEach(
-      (obj: {
-        username: string;
-        displayName: string;
-        ref: DocumentReference;
-      }) => {
-        const res: UserSearchResult = {
-          username: obj.username,
-          displayName: obj.displayName,
-          user: new User(obj.ref),
-        };
-        if (!spread.has(obj.username)) spread.set(obj.username, []);
-        if (!spread.has(obj.displayName)) spread.set(obj.displayName, []);
-        spread.get(obj.username)?.push(res);
-        spread.get(obj.displayName)?.push(res);
-      }
-    );
 
+export function buildUserSubstringMatcher(cacheData: UserCacheData) {
+  const spread = new Map<string, UserSearchResult[]>();
+  cacheData.forEach((obj) => {
+    const res: UserSearchResult = {
+      username: obj.username,
+      displayName: obj.displayName,
+      user: new User(obj.ref),
+    };
+    if (!spread.has(obj.username)) spread.set(obj.username, []);
+    if (!spread.has(obj.displayName)) spread.set(obj.displayName, []);
+    spread.get(obj.username)?.push(res);
+    spread.get(obj.displayName)?.push(res);
+  });
   return new SubstringMatcher(spread);
 }
 
@@ -233,4 +283,21 @@ export async function getUserSubstringMatcher() {
 //     })
 //     .filter((obj: any | undefined) => obj !== undefined);
 //   return setDoc(doc(db, 'caches', 'users'), { allUsers: newMap });
+// }
+
+// export async function __INTERNAL__addRetroFollowers() {
+//   const usersCursor = new QueryCursor(User, 5, collection(db, 'users'));
+//   return usersCursor
+//     .________getAll_CLOWNTOWN_LOTS_OF_READS()
+//     .then((users) =>
+//       users.forEach((user) =>
+//         user
+//           .getData()
+//           .then(() =>
+//             user.following?.forEach((follow) =>
+//               updateDoc(follow.docRef!, { followers: arrayUnion(user.docRef!) })
+//             )
+//           )
+//       )
+//     );
 // }

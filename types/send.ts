@@ -4,6 +4,13 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { LazyObject, Route, RouteClassifier, User } from '../types';
 
+export type FetchedSend = {
+  user: User;
+  route: Route;
+  timestamp: Date;
+  classifier: RouteClassifier;
+};
+
 export class Send extends LazyObject {
   public user?: User;
   public route?: Route;
@@ -49,7 +56,24 @@ export class Send extends LazyObject {
     if (!this.hasData) await this.getData();
     return this.route!;
   }
+
+  // ======================== Fetchers and Builders ========================
+
+  public async fetch() {
+    return {
+      user: await this.getUser(),
+      route: await this.getRoute(),
+      timestamp: await this.getTimestamp(),
+      classifier: await this.getClassifier(),
+    } as FetchedSend;
+  }
+
+  public buildFetcher() {
+    return async () => this.getData().then(() => this.fetch());
+  }
 }
+
+
 
 export class SendMock extends Send {
   constructor(user: User, timestamp: Date, route: Route) {

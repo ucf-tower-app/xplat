@@ -77,3 +77,26 @@ export function getIQParams_UserFollowing(followingList: User[]) {
     },
   };
 }
+
+export function getIQParams_UserSends(userDocRefId: string) {
+  return {
+    queryKey: ['sends', userDocRefId],
+    queryFn: async ({ pageParam = undefined }) => {
+      return getDocs(
+        query(
+          collection(db, 'sends'),
+          ...[
+            where('user', '==', doc(db, 'users', userDocRefId)),
+            orderBy('timestamp', 'desc'),
+            ...(pageParam !== undefined ? [startAfter(pageParam)] : []),
+            limit(STRIDE),
+          ]
+        )
+      ).then((snap) => snap.docs);
+    },
+    getNextPageParam: (lastPage: any) => {
+      if (lastPage.length < STRIDE) return undefined;
+      else return lastPage[lastPage.length - 1];
+    },
+  };
+}

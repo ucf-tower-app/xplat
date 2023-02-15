@@ -59,12 +59,44 @@ export enum RouteStatus {
   Archived = 2,
 }
 
+enum Semester {
+  Spring = 'Spring',
+  Summer = 'Summer',
+  Fall = 'Fall',
+}
+
+function getSemester(date: Date) {
+  const month = date.getMonth();
+  if (month <= 5) return Semester.Spring;
+  if (month <= 7) return Semester.Summer;
+  return Semester.Fall;
+}
+
+export function getMonthlyLeaderboardDocRef(date: Date) {
+  return doc(
+    db,
+    'leaderboards',
+    date.toLocaleString('default', { month: 'long' }) +
+      '_' +
+      date.getFullYear().toString()
+  );
+}
+
+export function getSemesterLeaderboardDocRef(date: Date) {
+  return doc(
+    db,
+    'leaderboards',
+    getSemester(date) + '_' + date.getFullYear().toString()
+  );
+}
+
 /** RouteClassifier class
  * Given a route type and grade number, respective user-displayable string
  * @param rawgrade: The number stored in firebase and backend objects
  * @param routeType: The associated routeType
- * Boulder: grade x returns 'Vx', except x=-1, which is 'VB'
- * Traverse/Comp: Grade x where x is in [1,26] returns A-Z as expected
+ * Boulder: grade x -> V((x-50)/10), where V-1 is VB
+ * Comp: Grade A-Z mapped from (grade-50)/20 (e.g. A is 50, B is 70, C is 90)
+ * Traverse: Beginner = 50, Intermediate = 70, Advanced = 90
  * Toprope/Leadclimb: Grade x returns '5.<round(x/10)>'. If x is not divisible by 10, the bias will be the +/- as expected.
  * E.g. Toprope 61 -> '5.6+', Toprope 69 -> '5.7-', Toprope 70 -> '5.7'
  */
@@ -72,30 +104,29 @@ export class RouteClassifier {
   public type: RouteType;
   public rawgrade: number;
   public displayString: string;
-  public points: number;
   constructor(rawgrade: number, type: RouteType) {
     this.type = type;
     this.rawgrade = rawgrade;
     this.displayString = gradeToDisplayString(rawgrade, type);
-    if (type == RouteType.Toprope || type == RouteType.Leadclimb)
-      this.points = rawgrade;
-    else this.points = rawgrade * 10 + 60;
   }
 }
 
+export const gradeModifiers = ['A', '-', 'B', '', 'C', '+', 'D'];
+
 function gradeToDisplayString(grade: number, type: RouteType) {
   if (type == RouteType.Boulder) {
-    if (grade == -1) return 'VB';
-    else return 'V' + grade;
-  } else if (type == RouteType.Traverse || type == RouteType.Competition) {
-    return String.fromCharCode(65 /*A = 65*/ + grade - 1);
+    if (grade === 40) return 'VB';
+    return 'V' + Math.round((grade - 50) / 10);
+  } else if (type == RouteType.Competition) {
+    return String.fromCharCode(65 /*A = 65*/ + Math.round((grade - 50) / 20));
+  } else if (type == RouteType.Traverse) {
+    return ['Beginner', 'Intermediate', 'Advanced'][
+      Math.round((grade - 50) / 20)
+    ];
   } else {
-    return (
-      '5.' +
-      Math.round(grade / 10) +
-      (grade % 10 == 1 ? '+' : '') +
-      (grade % 10 == 9 ? '-' : '')
-    );
+    const base = Math.round(grade / 10);
+    const mod = gradeModifiers[(grade + 3) % 10];
+    return '5.' + base + mod;
   }
 }
 
@@ -280,6 +311,8 @@ export class Route extends LazyObject {
       return already;
     }
     const newSendDocRef = doc(collection(db, 'sends'));
+    const now = new Date();
+
     await runTransaction(db, async (transaction) => {
       await Promise.all([
         this.updateWithTransaction(transaction),
@@ -320,7 +353,33 @@ export class Route extends LazyObject {
         .update(sender.docRef!, {
           totalSends: Object.fromEntries(totalSends),
           bestSends: Object.fromEntries(bestSends),
-        });
+        })
+        .set(
+          getMonthlyLeaderboardDocRef(now),
+          {
+            data: {
+              [sender.docRef!.id]: {
+                displayName: sender.displayName!,
+                sends: increment(1),
+                points: increment(this.classifier!.rawgrade),
+              },
+            },
+          },
+          { merge: true }
+        )
+        .set(
+          getSemesterLeaderboardDocRef(now),
+          {
+            data: {
+              [sender.docRef!.id]: {
+                displayName: sender.displayName!,
+                sends: increment(1),
+                points: increment(this.classifier!.rawgrade),
+              },
+            },
+          },
+          { merge: true }
+        );
     });
     return new Send(newSendDocRef);
   }
