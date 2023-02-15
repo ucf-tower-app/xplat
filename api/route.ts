@@ -215,7 +215,7 @@ export function getAllCompRouteClassifiers() {
 }
 
 export function getAllBoulderClassifiers() {
-  return ['VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'].map(
+  return ['VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7'].map(
     convertBoulderStringToClassifier
   );
 }
