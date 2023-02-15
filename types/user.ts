@@ -60,7 +60,6 @@ import {
 export interface FetchedUser {
   docRefId: string;
   username: string;
-  email: string;
   displayName: string;
   bio: string;
   status: UserStatus;
@@ -88,7 +87,6 @@ export enum UserActionError {
 export class User extends LazyObject {
   // Expected and required when getting data
   public username?: string;
-  public email?: string;
   public displayName?: string;
   public bio?: string;
   public status?: UserStatus;
@@ -105,7 +103,6 @@ export class User extends LazyObject {
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
-    this.email = data.email;
     this.displayName = data.displayName;
     this.bio = data.bio;
     this.status = data.status as UserStatus;
@@ -265,7 +262,7 @@ export class User extends LazyObject {
     // Force update to have best non-guaranteed recent data
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, password)
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
     );
 
     const preTasks: Promise<any>[] = [];
@@ -370,7 +367,6 @@ export class User extends LazyObject {
     const modHistoryDocRef = doc(db, 'modHistory');
     return setDoc(modHistoryDocRef, {
       userModerated: (await content.getAuthor()).username,
-      userEmail: (await content.getAuthor()).email,
       mod: this.docRef,
       modReason: modReason,
       timestamp: serverTimestamp(),
@@ -390,7 +386,7 @@ export class User extends LazyObject {
 
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, password)
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
     );
 
     user.getData();
@@ -488,7 +484,7 @@ export class User extends LazyObject {
 
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, password)
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
     );
 
     return runTransaction(db, async (transaction) => {
@@ -576,7 +572,7 @@ export class User extends LazyObject {
     await this.checkIfSignedIn();
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, oldPassword)
+      EmailAuthProvider.credential(auth.currentUser!.email!, oldPassword)
     );
     return updatePassword(auth.currentUser!, newPassword);
   }
@@ -590,9 +586,10 @@ export class User extends LazyObject {
     await this.getData();
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, password)
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
     );
-    if (this.email! !== oldEmail) throw UserActionError.IncorrectOldEmail;
+    if (auth.currentUser!.email! !== oldEmail)
+      throw UserActionError.IncorrectOldEmail;
     if (this.status! === UserStatus.Manager)
       throw UserActionError.MusntBeManager;
     if (isKnightsEmail(oldEmail)) throw UserActionError.AlreadyKnights;
@@ -823,7 +820,6 @@ export class User extends LazyObject {
     return {
       docRefId: this.docRef!.id,
       username: await this.getUsername(),
-      email: await this.getEmail(),
       status: await this.getStatus(),
       displayName: shouldBeHidden
         ? DEFAULT_DISPLAY_NAME
@@ -913,13 +909,6 @@ export class User extends LazyObject {
     return this.username!;
   }
 
-  /** getEmail()
-   */
-  public async getEmail() {
-    if (!this.hasData) await this.getData();
-    return this.email!;
-  }
-
   /** getDisplayName()
    */
   public async getDisplayName() {
@@ -945,7 +934,6 @@ export class User extends LazyObject {
 export class UserMock extends User {
   constructor(
     username: string,
-    email: string,
     displayName: string,
     bio: string,
     status: UserStatus,
@@ -956,7 +944,6 @@ export class UserMock extends User {
   ) {
     super();
     this.username = username;
-    this.email = email;
     this.displayName = displayName;
     this.bio = bio;
     this.status = status;
