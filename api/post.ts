@@ -9,7 +9,7 @@ import {
   Transaction,
 } from 'firebase/firestore';
 import { ref, uploadBytes, UploadResult } from 'firebase/storage';
-import { db, storage } from '../Firebase';
+import { db, MAX_USER_CONTENT_BYTES, storage } from '../Firebase';
 import { Forum, Post, User } from '../types';
 
 /** getPostById
@@ -33,6 +33,10 @@ interface CreatePostArgs {
   isSend: boolean;
 }
 
+export enum CreatePostError {
+  TooLarge = 'This post exceeds your 75 Mb image/video storage limits. Unfortunately, we are an unfunded project and storage is expensive! Please delete some of your previous posts or use shorter videos or smaller images.',
+}
+
 /** createPost
  * Creates a post
  * @param author
@@ -53,6 +57,22 @@ export async function createPost({
   routeInfo = undefined,
   isSend = false,
 }: CreatePostArgs) {
+  await author.getData(true);
+  var newPostSizeInBytes = 0;
+  if (videoContent)
+    newPostSizeInBytes += videoContent.thumbnail.size + videoContent.video.size;
+  if (imageContent)
+    newPostSizeInBytes += imageContent.reduce(
+      (sum, item) => sum + item.size,
+      0
+    );
+  if (
+    (await author.getTotalPostSizeInBytes()) + newPostSizeInBytes >
+    MAX_USER_CONTENT_BYTES
+  ) {
+    throw CreatePostError.TooLarge;
+  }
+
   const newPostDocRef = doc(collection(db, 'posts'));
   const uploads: Promise<UploadResult>[] = [];
   if (videoContent) {
@@ -77,18 +97,14 @@ export async function createPost({
     );
   }
 
-  const results = await Promise.all(uploads);
-  const postSizeInBytes = results.reduce(
-    (sum, result) => sum + result.metadata.size,
-    0
-  );
+  await Promise.all(uploads);
 
   return runTransaction(db, async (transaction: Transaction) => {
     if (forum)
       transaction.update(forum.docRef!, { posts: arrayUnion(newPostDocRef) });
     transaction.update(author.docRef!, {
       posts: arrayUnion(newPostDocRef),
-      totalPostSizeInBytes: increment(postSizeInBytes),
+      totalPostSizeInBytes: increment(newPostSizeInBytes),
     });
     transaction.set(newPostDocRef, {
       author: author.docRef!,

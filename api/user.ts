@@ -56,6 +56,12 @@ export function validBio(bio: string): boolean {
   return bio.length <= 200;
 }
 
+export enum CreateUserError {
+  InvalidUsername = 'Invalid Username! Please choose a valid username',
+  InvalidDisplayName = 'Invalid Display Name! Please choose a valid display name',
+  UsernameTaken = 'Username Taken! Please choose another username',
+}
+
 /** createUser
  * Create an auth user and a firebase document for that user.
  * @param email: The new user's email
@@ -72,11 +78,9 @@ export async function createUser(
   username: string,
   displayName: string
 ) {
-  if (!validUsername(username)) return Promise.reject('Invalid Username!');
-  if (!validDisplayname(displayName))
-    return Promise.reject('Invalid Display Name!');
-  if (await getUserByUsername(username))
-    return Promise.reject('Username taken');
+  if (!validUsername(username)) throw CreateUserError.InvalidUsername;
+  if (!validDisplayname(displayName)) throw CreateUserError.InvalidDisplayName;
+  if (await getUserByUsername(username)) throw CreateUserError.UsernameTaken;
   return createUserWithEmailAndPassword(auth, email, password).then(
     (cred: UserCredential) => {
       return runTransaction(db, async (transaction: Transaction) => {
@@ -104,14 +108,16 @@ export async function createUser(
   );
 }
 
+export enum AuthActionError {
+  NotSignedIn = 'Not signed in!',
+}
 /** getCurrentUser
  * Get the current auth user, and return the corresponding Tower User
  * @returns The corresponding Tower User object
  * @throws If the user is not signed in
  */
 export async function getCurrentUser() {
-  if (auth.currentUser === null)
-    return Promise.reject('Failed to authenticate');
+  if (auth.currentUser === null) throw AuthActionError.NotSignedIn;
   return new User(doc(db, 'users', auth.currentUser.uid));
 }
 
@@ -172,7 +178,7 @@ export async function sendAuthEmail() {
  * @throws If auth is not signed in
  */
 export async function sendEmailCode() {
-  if (auth.currentUser === null) return Promise.reject('Not signed in!');
+  if (auth.currentUser === null) throw AuthActionError.NotSignedIn;
   const code = Math.floor(100000 + Math.random() * 900000); // 6 digits, no leading zeros
   return functions_sendMail({
     dest: auth.currentUser.email!,
@@ -187,7 +193,7 @@ export async function sendEmailCode() {
  * @returns The relevant Tower User
  */
 export async function confirmEmailCode() {
-  if (auth.currentUser === null) return Promise.reject('Not signed in!');
+  if (auth.currentUser === null) throw AuthActionError.NotSignedIn;
   const user = getUserById(auth.currentUser.uid);
   await updateDoc(user.docRef!, {
     status: isKnightsEmail(auth.currentUser.email!)

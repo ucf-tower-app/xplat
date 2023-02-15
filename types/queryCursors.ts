@@ -23,6 +23,10 @@ export interface Cursor<T> {
   getStoredResults(): T[];
 }
 
+export enum CursorError {
+  NoMoreData = 'No More Data!',
+}
+
 export class ArrayCursor<T extends LazyObject> implements Cursor<T> {
   public data: T[];
   private idx: number;
@@ -49,7 +53,7 @@ export class ArrayCursor<T extends LazyObject> implements Cursor<T> {
       await res.getData();
       if (res.exists) return res;
     }
-    return Promise.reject('No more data!');
+    throw CursorError.NoMoreData;
   }
 
   public async peekNext() {
@@ -148,7 +152,7 @@ export class QueryCursor<T extends LazyObject> implements Cursor<T> {
 
   public async pollNext() {
     const res = await this.peekNext();
-    if (!res) return Promise.reject('No more data');
+    if (!res) throw CursorError.NoMoreData;
     this.idx++;
     return res;
   }
@@ -214,7 +218,7 @@ export class PostCursorMerger implements Cursor<Post> {
   public async pollNext(): Promise<Post> {
     this.next = undefined;
     const nextSide = await this.nextSide();
-    if (!nextSide) return Promise.reject('No more data!');
+    if (!nextSide) throw CursorError.NoMoreData;
     return nextSide.pollNext();
   }
 

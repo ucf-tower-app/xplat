@@ -72,6 +72,19 @@ export interface FetchedUser {
   totalSends: number;
   userObject: User;
 }
+
+export enum UserActionError {
+  EmployeeReport = "Can't report an employee's content!",
+  NotSignedIn = 'This action requires being signed in!',
+  NotYourUser = 'You cannot perform this action on behalf of another user',
+  NotAnEmployee = 'This action can only be performed by employees',
+  IncorrectOldEmail = 'Must provide your old email!',
+  MusntBeManager = 'Unable to perform this action as a manager account. Please ensure there are other manager accounts and demote this account.',
+  AlreadyKnights = "Unable to change an account's email which is already using a knights email.",
+  AvatarTooLarge = 'Avatar too large!',
+  InvalidDisplayName = 'InvalidDisplayName',
+}
+
 export class User extends LazyObject {
   // Expected and required when getting data
   public username?: string;
@@ -129,7 +142,7 @@ export class User extends LazyObject {
   public async addReport(content: Post | Comment | User) {
     // check that the content to be reported isn't from an employee/manager, we don't want to automod them
     if ((await (await content.getAuthor()).getStatus()) >= UserStatus.Employee)
-      return Promise.reject('Cant report an employees content');
+      throw UserActionError.EmployeeReport;
 
     if (!content.hasData) await content.getData();
 
@@ -245,11 +258,8 @@ export class User extends LazyObject {
    * @param password: The user's auth password. Required by auth.
    */
   public async delete(password: string) {
-    if (!auth.currentUser) return Promise.reject('Not signed in!');
-    if (auth.currentUser.uid != this.docRef!.id)
-      return Promise.reject(
-        'Cannot delete User to which you are not signed in.'
-      );
+    if (!auth.currentUser) throw UserActionError.NotSignedIn;
+    if (auth.currentUser.uid != this.docRef!.id) UserActionError.NotYourUser;
 
     await this.getData(true);
     // Force update to have best non-guaranteed recent data
@@ -303,8 +313,7 @@ export class User extends LazyObject {
    */
   public async clearAllReports(content: Post | Comment | User) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee)
-      return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     content.getData();
 
@@ -341,8 +350,7 @@ export class User extends LazyObject {
     modReason: string
   ) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee)
-      return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     if (!content.hasData) await content.getData();
 
@@ -378,8 +386,7 @@ export class User extends LazyObject {
    */
   public async banUser(user: User, modReason: string, password: string) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee)
-      return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     await reauthenticateWithCredential(
       auth.currentUser!,
@@ -555,11 +562,9 @@ export class User extends LazyObject {
    * @returns A resolved promise if this is the current auth user.
    */
   public async checkIfSignedIn(): Promise<void> {
-    if (!auth.currentUser) return Promise.reject('Not signed in!');
+    if (!auth.currentUser) throw UserActionError.NotSignedIn;
     if (auth.currentUser.uid != this.docRef!.id)
-      return Promise.reject(
-        'Cannot perform this action on behalf of someone else.'
-      );
+      throw UserActionError.NotYourUser;
   }
 
   /** changePassword
@@ -587,16 +592,10 @@ export class User extends LazyObject {
       auth.currentUser!,
       EmailAuthProvider.credential(this.email!, password)
     );
-    if (this.email! !== oldEmail)
-      return Promise.reject('Must provide the correct old email!');
+    if (this.email! !== oldEmail) throw UserActionError.IncorrectOldEmail;
     if (this.status! === UserStatus.Manager)
-      return Promise.reject(
-        'Unable to delete manager account: Please ensure there are other manager accounts and demote your own before deleting.'
-      );
-    if (isKnightsEmail(oldEmail))
-      return Promise.reject(
-        "Unable to change an account's email which is using a knights email."
-      );
+      throw UserActionError.MusntBeManager;
+    if (isKnightsEmail(oldEmail)) throw UserActionError.AlreadyKnights;
 
     return updateEmail(auth.currentUser!, newEmail).then(() => {
       updateDoc(this.docRef!, {
@@ -712,7 +711,7 @@ export class User extends LazyObject {
   public async setAvatar(avatar: Blob) {
     await this.checkIfSignedIn();
 
-    if (avatar.size > 100000) return Promise.reject('Avatar too large!');
+    if (avatar.size > 100000) throw UserActionError.AvatarTooLarge;
 
     if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
       await deleteObject(this.avatar.getStorageRef());
@@ -752,7 +751,7 @@ export class User extends LazyObject {
     await this.checkIfSignedIn();
     if (this.displayName! === displayName) return;
     if (!validDisplayname(displayName))
-      return Promise.reject('Invalid Display Name!');
+      throw UserActionError.InvalidDisplayName;
 
     return runTransaction(db, async (transaction) => {
       const cacheDocRef = doc(db, 'caches', 'users');

@@ -20,7 +20,6 @@ import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { db, storage } from '../Firebase';
-import { getRouteByName } from '../api';
 import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from '../types';
 
 export enum RouteType {
@@ -57,6 +56,10 @@ export enum RouteStatus {
   Draft = 0,
   Active = 1,
   Archived = 2,
+}
+
+export enum DeleteRouteError {
+  NotDraft = "Cannot delete a route unless it's a draft!",
 }
 
 enum Semester {
@@ -390,8 +393,7 @@ export class Route extends LazyObject {
    */
   public async delete() {
     await this.getData(true);
-    if (this.status! !== RouteStatus.Draft)
-      return Promise.reject('Can only delete a draft route');
+    if (this.status! !== RouteStatus.Draft) throw DeleteRouteError.NotDraft;
     const tasks = [deleteDoc(this.docRef!), deleteDoc(this.forum!.docRef!)];
     if (this.thumbnail)
       tasks.push(deleteObject(this.thumbnail.getStorageRef()));
@@ -401,7 +403,6 @@ export class Route extends LazyObject {
   /** edit
    * Update a route with any of the non-undefined params.
    * All params are optional since not every param *has* to change.
-   * @param name: Route's name
    * @param classifier: Route's classifier
    * @param description: The route's description
    * @param tags: A list of Tag, the route's tags
@@ -414,7 +415,6 @@ export class Route extends LazyObject {
    * @remarks Updates this route's fields
    */
   public async edit({
-    name = undefined,
     classifier = undefined,
     description = undefined,
     tags = undefined,
@@ -425,8 +425,6 @@ export class Route extends LazyObject {
     setterRawName = undefined,
     naturalRules = undefined,
   }: EditRouteArgs) {
-    if (name && (await getRouteByName(name)) !== undefined)
-      return Promise.reject('Route with this name already exists!');
     await this.getData(true);
     if (thumbnail) {
       if (this.thumbnail) await deleteObject(this.thumbnail.getStorageRef());
@@ -438,7 +436,6 @@ export class Route extends LazyObject {
     const res = runTransaction(db, async (transaction) => {
       await this.updateWithTransaction(transaction);
       transaction.update(this.docRef!, {
-        ...(name && { name: name }),
         ...(classifier && { classifier: classifier }),
         ...(description && { description: description }),
         ...(tags && { tags: tags }),
@@ -451,7 +448,6 @@ export class Route extends LazyObject {
       });
     });
 
-    if (name) this.name = name;
     if (classifier) this.classifier = classifier;
     if (description) this.description = description;
     if (tags) this.tags = tags;
