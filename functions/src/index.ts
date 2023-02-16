@@ -54,3 +54,5 @@ exports.sendMail = functions.https.onRequest((req: any, res: any) => {
     });
   });
 });
+
+export {};

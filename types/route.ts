@@ -148,22 +148,26 @@ export interface EditRouteArgs {
 
 export type FetchedRoute = {
   name: string;
-  gradeDisplayString: string;
   classifier: RouteClassifier;
+  gradeDisplayString: string;
+  forumDocRefID: string;
+
   likes: User[];
   stringifiedTags: string;
   status: RouteStatus;
   description: string;
-  thumbnailUrl: string;
+  numSends: number;
+
+  starRating?: number;
 
   setter?: User;
   setterRawName?: string;
+  thumbnailUrl: string;
   rope?: number;
   timestamp?: Date; // Defined if active or archived
   color?: string;
   naturalRules?: NaturalRules;
 
-  forumDocRefID: string;
   routeObject: Route;
 };
 
@@ -478,24 +482,28 @@ export class Route extends LazyObject {
 
     return {
       name: await this.getName(),
-      gradeDisplayString: await this.getGradeDisplayString(),
       classifier: this.classifier!,
+      gradeDisplayString: await this.getGradeDisplayString(),
+      forumDocRefID: (await this.getForum()).docRef!.id,
+
       likes: await this.getLikes(),
       stringifiedTags: tagStringBuilder,
       status: await this.getStatus(),
       description: await this.getDescription(),
-      thumbnailUrl: (await this.hasThumbnail())
-        ? await this.getThumbnailUrl()
-        : DEFAULT_THUMBNAIL_TMP,
+      numSends: await this.getSendCount(),
+
+      starRating: await this.getStarRating(),
 
       setter: this.setter,
       setterRawName: this.setterRawName,
+      thumbnailUrl: (await this.hasThumbnail())
+        ? await this.getThumbnailUrl()
+        : DEFAULT_THUMBNAIL_TMP,
+        rope: this.rope,
       timestamp: this.timestamp,
-      rope: this.rope,
       color: this.color,
       naturalRules: this.naturalRules,
 
-      forumDocRefID: (await this.getForum()).docRef!.id,
       routeObject: this,
     } as FetchedRoute;
   }
