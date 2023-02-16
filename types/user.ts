@@ -8,20 +8,22 @@ import {
 import {
   DocumentData,
   DocumentReference,
+  Timestamp,
   Transaction,
-  setDoc,
-  getDocs,
-  query,
   arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
   doc,
+  getDoc,
+  getDocs,
   orderBy,
+  query,
   refEqual,
   runTransaction,
-  updateDoc,
   serverTimestamp,
+  setDoc,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import {
@@ -115,15 +117,15 @@ export class User extends LazyObject {
    * @param content: the post or comment to be reported
    */
   public async addReport(content: Post | Comment | User) {
-
     // check that the content to be reported isn't from an employee/manager, we don't want to automod them
-    if (await (await content.getAuthor()).getStatus() >= UserStatus.Employee)
+    if ((await (await content.getAuthor()).getStatus()) >= UserStatus.Employee)
       return Promise.reject('Cant report an employees content');
 
     if (!content.hasData) await content.getData();
 
     // if already reported or already has a significant number of reports (arbitrary), return
-    if (await this.alreadyReported(content) || content.reports?.length! > 7) return;
+    if ((await this.alreadyReported(content)) || content.reports?.length! > 7)
+      return;
 
     // update client side
     content.reports?.push(this);
@@ -132,9 +134,10 @@ export class User extends LazyObject {
     const newReportDocRef = doc(collection(db, 'reports'));
 
     return runTransaction(db, async (transaction: Transaction) => {
+      const rep = await content.getAuthor();
       transaction.set(newReportDocRef, {
         reporter: this.docRef!,
-        reported: (content instanceof User ? content.getUsername() : content.getAuthor()),
+        reported: rep.docRef!,
         timestamp: serverTimestamp(),
         content: content.docRef!,
       });
@@ -163,9 +166,9 @@ export class User extends LazyObject {
     // update server side
     const q = await getDocs(
       query(
-      collection(db, 'reports'),
-      where('reporter', '==', this.docRef!),
-      where('content', '==', content.docRef!)
+        collection(db, 'reports'),
+        where('reporter', '==', this.docRef!),
+        where('content', '==', content.docRef!)
       )
     );
     const reportDocRef = q.docs[0].ref;
@@ -178,9 +181,9 @@ export class User extends LazyObject {
   }
 
   /** alreadyReported
-  * Checks if this  user has already reported the specified content
-  * @returns true if this user has already reported the content, false otherwise
-  */
+   * Checks if this  user has already reported the specified content
+   * @returns true if this user has already reported the content, false otherwise
+   */
   public async alreadyReported(content: Post | Comment | User) {
     if (!content.hasData) await content.getData();
     return containsRef(content.reports!, this);
@@ -276,7 +279,8 @@ export class User extends LazyObject {
    */
   public async clearAllReports(content: Post | Comment | User) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee)
+      return Promise.reject('Not an employee, cant moderate!');
 
     content.getData();
 
@@ -285,12 +289,16 @@ export class User extends LazyObject {
       (report) => !refEqual(report.docRef!, this.docRef!)
     );
 
+    // add a modHistory entry
+    this.addModAction(
+      await content.getAuthor(),
+      this,
+      'Cleared all reports on this content.'
+    );
+
     // update server side: get all reports on this content from the reports collection
     const q = await getDocs(
-      query(
-      collection(db, 'reports'),
-      where('content', '==', content.docRef!)
-      )
+      query(collection(db, 'reports'), where('content', '==', content.docRef!))
     );
     // run a transaction that deletes all reports found in this query
     return runTransaction(db, async (transaction: Transaction) => {
@@ -311,9 +319,13 @@ export class User extends LazyObject {
    * Employees should specify a reason as to why they took action, this will be held in a modHistory collection.
    * @param content: the post, comment, or user to be cleared of all current reports
    */
-  public async deleteReportedContent(content: Post | Comment | User, modReason: string) {
+  public async deleteReportedContent(
+    content: Post | Comment | User,
+    modReason: string
+  ) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee)
+      return Promise.reject('Not an employee, cant moderate!');
 
     if (!content.hasData) await content.getData();
 
@@ -323,19 +335,66 @@ export class User extends LazyObject {
     // if content is a user, remove their avatar & bio & displayname.
     else if (content instanceof User) {
       content.deleteAvatar();
-      content.setBio("My profile content got deleted by a moderator and I am so embarrassed.");
-      content.setDisplayName("Disappointment");
+      content.setBio(
+        'My profile content got deleted by a moderator and I am so embarrassed.'
+      );
+      content.setDisplayName('Disappointment');
     }
 
     // add a modHistory entry
-    const modHistoryDocRef = doc(db, 'modHistory');
-    return setDoc(modHistoryDocRef, {
-      userModerated: (await content.getAuthor()).username,
-      userEmail: (await content.getAuthor()).email,
-      mod: this.docRef,
-      modReason: 'Deleted content:' + modReason,
-      timestamp: serverTimestamp()
-    });
+    this.addModAction(
+      await content.getAuthor(),
+      this,
+      'Deleted reported content: ' + modReason
+    );
+  }
+
+  /** getDateMM_DD_YYYY
+   * @returns the current date in the format MM_DD_YYYY
+   */
+  public async getDateMM_DD_YYYY() {
+    const date = new Date();
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear().toString();
+    return `${month}_${day}_${year}`;
+  }
+
+  /** addModAction
+   * Add a modAction array entry to the current day's doc in modHistory.
+   * @remarks this function should not be called directly.
+   * @param userModerated: the user who was moderated
+   * @param mod: the user who moderated
+   * @param modReason: the reason for the moderation
+   */
+  public async addModAction(userModerated: User, mod: User, modReason: String) {
+    const documentId = await this.getDateMM_DD_YYYY();
+    const modHistoryDocRef = await doc(db, 'modHistory', documentId);
+    const modHistorySnap = await getDoc(modHistoryDocRef);
+
+    // If the document already exists, add the modAction to the list
+    if (modHistorySnap.exists()) {
+      await updateDoc(modHistoryDocRef, {
+        actions: arrayUnion({
+          userModerated: userModerated.docRef!,
+          mod: mod.docRef!,
+          modReason: modReason,
+          timestamp: Timestamp.now(),
+        }),
+      });
+    }
+    // If the document does not exist, create it and add the modAction
+    else {
+      await setDoc(modHistoryDocRef, {
+        timestamp: Timestamp.now(),
+        actions: {
+          userModerated: userModerated.docRef!,
+          mod: mod.docRef!,
+          modReason: modReason,
+          timestamp: Timestamp.now(),
+        },
+      });
+    }
   }
 
   /** banUser
@@ -347,7 +406,8 @@ export class User extends LazyObject {
    */
   public async banUser(user: User, modReason: string, password: string) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee) return Promise.reject('Not an employee, cant moderate!');
+    if (this.status! < UserStatus.Employee)
+      return Promise.reject('Not an employee, cant moderate!');
 
     await reauthenticateWithCredential(
       auth.currentUser!,
@@ -393,14 +453,7 @@ export class User extends LazyObject {
     });
 
     // add a modHistory entry
-    const modHistoryDocRef = doc(db, 'modHistory');
-    return setDoc(modHistoryDocRef, {
-      userModerated: user,
-      userEmail: user.getEmail(),
-      mod: this.docRef,
-      modReason: 'Banned user:' + modReason,
-      timestamp: serverTimestamp()
-    });
+    this.addModAction(user, this, 'Banned user: ' + modReason);
   }
 
   /** approveOtherUser
@@ -425,14 +478,7 @@ export class User extends LazyObject {
       }
 
       // add a modHistory entry
-      const modHistoryDocRef = doc(db, 'modHistory');
-      return setDoc(modHistoryDocRef, {
-        userModerated: other,
-        userEmail: other.getEmail(),
-        mod: this.docRef,
-        modReason: 'Promoted this user to approved.',
-        timestamp: serverTimestamp()
-      });
+      this.addModAction(other, this, 'Promoted this user to approved.');
     });
   }
 
@@ -458,14 +504,7 @@ export class User extends LazyObject {
       }
 
       // add a modHistory entry
-      const modHistoryDocRef = doc(db, 'modHistory');
-      return setDoc(modHistoryDocRef, {
-        userModerated: other,
-        userEmail: other.getEmail(),
-        mod: this.docRef,
-        modReason: 'Promoted this user to employee.',
-        timestamp: serverTimestamp()
-      });
+      this.addModAction(other, this, 'Promoted this user to employee.');
     });
   }
 
@@ -500,14 +539,7 @@ export class User extends LazyObject {
       }
 
       // add a modHistory entry
-      const modHistoryDocRef = doc(db, 'modHistory');
-      return setDoc(modHistoryDocRef, {
-        userModerated: other,
-        userEmail: other.getEmail(),
-        mod: this.docRef,
-        modReason: 'Promoted this user to manager.',
-        timestamp: serverTimestamp()
-      });
+      this.addModAction(other, this, 'Promoted this user to manager.');
     });
   }
 
@@ -533,14 +565,7 @@ export class User extends LazyObject {
       }
 
       // add a modHistory entry
-      const modHistoryDocRef = doc(db, 'modHistory');
-      return setDoc(modHistoryDocRef, {
-        userModerated: other,
-        userEmail: other.getEmail(),
-        mod: this.docRef,
-        modReason: 'Demoted this employee to approved.',
-        timestamp: serverTimestamp()
-      });
+      this.addModAction(other, this, 'Demoted this employee to approved.');
     });
   }
 
@@ -567,14 +592,7 @@ export class User extends LazyObject {
       }
 
       // add a modHistory entry
-      const modHistoryDocRef = doc(db, 'modHistory');
-      return setDoc(modHistoryDocRef, {
-        userModerated: other,
-        userEmail: other.getEmail(),
-        mod: this.docRef,
-        modReason: 'Demoted this user to verified.',
-        timestamp: serverTimestamp()
-      });
+      this.addModAction(other, this, 'Demoted this user to verified.');
     });
   }
 
@@ -803,7 +821,7 @@ export class User extends LazyObject {
   public static buildFetcherFromDocRefId(docRefId: string) {
     return new User(doc(db, 'users', docRefId)).buildFetcher();
   }
-  
+
   /** toggleNoSpoilers
    * Toggle whether or not the user wants spoilers.
    * @remarks use getNoSpoilers to get the current value
@@ -814,7 +832,7 @@ export class User extends LazyObject {
 
     return updateDoc(this.docRef!, {
       noSpoilers: !(await this.getNoSpoilers()),
-    }).then(() => (this.noSpoilers = !(this.noSpoilers!)));
+    }).then(() => (this.noSpoilers = !this.noSpoilers!));
   }
 
   // ======================== Trivial Getters Below ========================

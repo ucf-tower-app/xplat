@@ -4,16 +4,14 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { LazyObject, User } from '../types';
 
-export class ModHistory extends LazyObject {
+export class ModAction extends LazyObject {
   public userModerated?: User;
-  public userEmail?: String;
   public mod?: User;
   public modReason?: String;
   public timestamp?: Date;
 
   public initWithDocumentData(data: DocumentData): void {
-    this.userModerated = new User(data.user);
-    this.userEmail = new String(data.userEmail);
+    this.userModerated = new User(data.userModerated);
     this.mod = new User(data.mod);
     this.modReason = new String(data.modReason);
     this.timestamp = new Date(
@@ -30,13 +28,6 @@ export class ModHistory extends LazyObject {
   public async getUserModerated() {
     if (!this.hasData) await this.getData();
     return this.userModerated!;
-  }
-
-  /** getUserEmail
-   */
-  public async getUserEmail() {
-    if (!this.hasData) await this.getData();
-    return this.userEmail!;
   }
 
   /** getMod
@@ -59,14 +50,17 @@ export class ModHistory extends LazyObject {
     if (!this.hasData) await this.getData();
     return this.timestamp!;
   }
-
 }
 
-export class ModHistoryMock extends ModHistory {
-  constructor(userModerated: User, userEmail: String, mod: User, modReason: String, timestamp: Date) {
+export class ModActionMock extends ModAction {
+  constructor(
+    userModerated: User,
+    mod: User,
+    modReason: String,
+    timestamp: Date
+  ) {
     super();
     this.userModerated = userModerated;
-    this.userEmail = userEmail;
     this.mod = mod;
     this.modReason = modReason;
     this.timestamp = timestamp;
