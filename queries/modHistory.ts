@@ -12,7 +12,7 @@ const STRIDE = 3;
 
 export function getIQParams_ModHistory() {
   return {
-    queryKey: ['modHistory', 'AAAAAAAAAAAAAAAAHHHHHHHHHHHH'], // 2nd param doesn't matter here bc no parent collection for modHistory
+    queryKey: ['modHistory'],
     queryFn: async ({ pageParam = undefined }) => {
       return getDocs(
         query(

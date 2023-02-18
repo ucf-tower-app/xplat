@@ -15,7 +15,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   getDocs,
   orderBy,
   query,
@@ -364,37 +363,59 @@ export class User extends LazyObject {
    * Add a modAction array entry to the current day's doc in modHistory.
    * @remarks this function should not be called directly.
    * @param userModerated: the user who was moderated
-   * @param mod: the user who moderated
+   * @param moderator: the user who moderated
    * @param modReason: the reason for the moderation
    */
-  public async addModAction(userModerated: User, mod: User, modReason: String) {
+  public async addModAction(
+    userModerated: User,
+    moderator: User,
+    modReason: String
+  ) {
     const documentId = await this.getDateMM_DD_YYYY();
     const modHistoryDocRef = await doc(db, 'modHistory', documentId);
-    const modHistorySnap = await getDoc(modHistoryDocRef);
 
-    // If the document already exists, add the modAction to the list
-    if (modHistorySnap.exists()) {
-      await updateDoc(modHistoryDocRef, {
-        actions: arrayUnion({
-          userModerated: userModerated.docRef!,
-          mod: mod.docRef!,
-          modReason: modReason,
-          timestamp: Timestamp.now(),
-        }),
-      });
-    }
-    // If the document does not exist, create it and add the modAction
-    else {
-      await setDoc(modHistoryDocRef, {
+    // Creates doc or updates it with the new modAction
+    await setDoc(
+      modHistoryDocRef,
+      {
         timestamp: Timestamp.now(),
-        actions: {
-          userModerated: userModerated.docRef!,
-          mod: mod.docRef!,
+        actions: arrayUnion({
+          userModeratedUsername: await userModerated.getUsername(),
+          moderatorUsername: await moderator.getUsername(),
           modReason: modReason,
           timestamp: Timestamp.now(),
-        },
-      });
-    }
+          userModerated: userModerated.docRef!,
+          moderator: moderator.docRef!,
+        }),
+      },
+      { merge: true }
+    );
+
+    // todo test above & delete below
+    // const modHistorySnap = await getDoc(modHistoryDocRef);
+    // // If the document already exists, add the modAction to the list
+    // if (modHistorySnap.exists()) {
+    //   await updateDoc(modHistoryDocRef, {
+    //     actions: arrayUnion({
+    //       userModerated: userModerated.docRef!,
+    //       moderator: moderator.docRef!,
+    //       modReason: modReason,
+    //       timestamp: Timestamp.now(),
+    //     }),
+    //   });
+    // }
+    // // If the document does not exist, create it and add the modAction
+    // else {
+    //   await setDoc(modHistoryDocRef, {
+    //     timestamp: Timestamp.now(),
+    //     actions: {
+    //       userModerated: userModerated.docRef!,
+    //       moderator: moderator.docRef!,
+    //       modReason: modReason,
+    //       timestamp: Timestamp.now(),
+    //     },
+    //   });
+    // }
   }
 
   /** banUser

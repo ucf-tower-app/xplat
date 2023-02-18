@@ -12,7 +12,7 @@ const STRIDE = 3;
 
 export function getIQParams_Reports() {
   return {
-    queryKey: ['reports', 'AAAAAAAAAAAAAAAAHHHHHHHHHHHH'], // 2nd param doesn't matter here bc no parent collection for reports
+    queryKey: ['reports'],
     queryFn: async ({ pageParam = undefined }) => {
       return getDocs(
         query(
