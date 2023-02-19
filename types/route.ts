@@ -20,7 +20,6 @@ import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { db, storage } from '../Firebase';
-import { getRouteByName } from '../api';
 import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from '../types';
 
 export enum RouteType {
@@ -59,12 +58,48 @@ export enum RouteStatus {
   Archived = 2,
 }
 
+export enum DeleteRouteError {
+  NotDraft = "Cannot delete a route unless it's a draft!",
+}
+
+enum Semester {
+  Spring = 'Spring',
+  Summer = 'Summer',
+  Fall = 'Fall',
+}
+
+function getSemester(date: Date) {
+  const month = date.getMonth();
+  if (month <= 5) return Semester.Spring;
+  if (month <= 7) return Semester.Summer;
+  return Semester.Fall;
+}
+
+export function getMonthlyLeaderboardDocRef(date: Date) {
+  return doc(
+    db,
+    'leaderboards',
+    date.toLocaleString('default', { month: 'long' }) +
+      '_' +
+      date.getFullYear().toString()
+  );
+}
+
+export function getSemesterLeaderboardDocRef(date: Date) {
+  return doc(
+    db,
+    'leaderboards',
+    getSemester(date) + '_' + date.getFullYear().toString()
+  );
+}
+
 /** RouteClassifier class
  * Given a route type and grade number, respective user-displayable string
  * @param rawgrade: The number stored in firebase and backend objects
  * @param routeType: The associated routeType
- * Boulder: grade x returns 'Vx', except x=-1, which is 'VB'
- * Traverse/Comp: Grade x where x is in [1,26] returns A-Z as expected
+ * Boulder: grade x -> V((x-50)/10), where V-1 is VB
+ * Comp: Grade A-Z mapped from (grade-50)/20 (e.g. A is 50, B is 70, C is 90)
+ * Traverse: Beginner = 50, Intermediate = 70, Advanced = 90
  * Toprope/Leadclimb: Grade x returns '5.<round(x/10)>'. If x is not divisible by 10, the bias will be the +/- as expected.
  * E.g. Toprope 61 -> '5.6+', Toprope 69 -> '5.7-', Toprope 70 -> '5.7'
  */
@@ -72,30 +107,29 @@ export class RouteClassifier {
   public type: RouteType;
   public rawgrade: number;
   public displayString: string;
-  public points: number;
   constructor(rawgrade: number, type: RouteType) {
     this.type = type;
     this.rawgrade = rawgrade;
     this.displayString = gradeToDisplayString(rawgrade, type);
-    if (type == RouteType.Toprope || type == RouteType.Leadclimb)
-      this.points = rawgrade;
-    else this.points = rawgrade * 10 + 60;
   }
 }
 
+export const gradeModifiers = ['A', '-', 'B', '', 'C', '+', 'D'];
+
 function gradeToDisplayString(grade: number, type: RouteType) {
   if (type == RouteType.Boulder) {
-    if (grade == -1) return 'VB';
-    else return 'V' + grade;
-  } else if (type == RouteType.Traverse || type == RouteType.Competition) {
-    return String.fromCharCode(65 /*A = 65*/ + grade - 1);
+    if (grade === 40) return 'VB';
+    return 'V' + Math.round((grade - 50) / 10);
+  } else if (type == RouteType.Competition) {
+    return String.fromCharCode(65 /*A = 65*/ + Math.round((grade - 50) / 20));
+  } else if (type == RouteType.Traverse) {
+    return ['Beginner', 'Intermediate', 'Advanced'][
+      Math.round((grade - 50) / 20)
+    ];
   } else {
-    return (
-      '5.' +
-      Math.round(grade / 10) +
-      (grade % 10 == 1 ? '+' : '') +
-      (grade % 10 == 9 ? '-' : '')
-    );
+    const base = Math.round(grade / 10);
+    const mod = gradeModifiers[(grade + 3) % 10];
+    return '5.' + base + mod;
   }
 }
 
@@ -114,22 +148,26 @@ export interface EditRouteArgs {
 
 export type FetchedRoute = {
   name: string;
-  gradeDisplayString: string;
   classifier: RouteClassifier;
+  gradeDisplayString: string;
+  forumDocRefID: string;
+
   likes: User[];
   stringifiedTags: string;
   status: RouteStatus;
   description: string;
-  thumbnailUrl: string;
+  numSends: number;
+
+  starRating?: number;
 
   setter?: User;
   setterRawName?: string;
+  thumbnailUrl: string;
   rope?: number;
   timestamp?: Date; // Defined if active or archived
   color?: string;
   naturalRules?: NaturalRules;
 
-  forumDocRefID: string;
   routeObject: Route;
 };
 
@@ -280,6 +318,8 @@ export class Route extends LazyObject {
       return already;
     }
     const newSendDocRef = doc(collection(db, 'sends'));
+    const now = new Date();
+
     await runTransaction(db, async (transaction) => {
       await Promise.all([
         this.updateWithTransaction(transaction),
@@ -320,7 +360,33 @@ export class Route extends LazyObject {
         .update(sender.docRef!, {
           totalSends: Object.fromEntries(totalSends),
           bestSends: Object.fromEntries(bestSends),
-        });
+        })
+        .set(
+          getMonthlyLeaderboardDocRef(now),
+          {
+            data: {
+              [sender.docRef!.id]: {
+                displayName: sender.displayName!,
+                sends: increment(1),
+                points: increment(this.classifier!.rawgrade),
+              },
+            },
+          },
+          { merge: true }
+        )
+        .set(
+          getSemesterLeaderboardDocRef(now),
+          {
+            data: {
+              [sender.docRef!.id]: {
+                displayName: sender.displayName!,
+                sends: increment(1),
+                points: increment(this.classifier!.rawgrade),
+              },
+            },
+          },
+          { merge: true }
+        );
     });
     return new Send(newSendDocRef);
   }
@@ -331,8 +397,7 @@ export class Route extends LazyObject {
    */
   public async delete() {
     await this.getData(true);
-    if (this.status! !== RouteStatus.Draft)
-      return Promise.reject('Can only delete a draft route');
+    if (this.status! !== RouteStatus.Draft) throw DeleteRouteError.NotDraft;
     const tasks = [deleteDoc(this.docRef!), deleteDoc(this.forum!.docRef!)];
     if (this.thumbnail)
       tasks.push(deleteObject(this.thumbnail.getStorageRef()));
@@ -342,7 +407,6 @@ export class Route extends LazyObject {
   /** edit
    * Update a route with any of the non-undefined params.
    * All params are optional since not every param *has* to change.
-   * @param name: Route's name
    * @param classifier: Route's classifier
    * @param description: The route's description
    * @param tags: A list of Tag, the route's tags
@@ -355,7 +419,6 @@ export class Route extends LazyObject {
    * @remarks Updates this route's fields
    */
   public async edit({
-    name = undefined,
     classifier = undefined,
     description = undefined,
     tags = undefined,
@@ -366,8 +429,6 @@ export class Route extends LazyObject {
     setterRawName = undefined,
     naturalRules = undefined,
   }: EditRouteArgs) {
-    if (name && (await getRouteByName(name)) !== undefined)
-      return Promise.reject('Route with this name already exists!');
     await this.getData(true);
     if (thumbnail) {
       if (this.thumbnail) await deleteObject(this.thumbnail.getStorageRef());
@@ -379,7 +440,6 @@ export class Route extends LazyObject {
     const res = runTransaction(db, async (transaction) => {
       await this.updateWithTransaction(transaction);
       transaction.update(this.docRef!, {
-        ...(name && { name: name }),
         ...(classifier && { classifier: classifier }),
         ...(description && { description: description }),
         ...(tags && { tags: tags }),
@@ -392,7 +452,6 @@ export class Route extends LazyObject {
       });
     });
 
-    if (name) this.name = name;
     if (classifier) this.classifier = classifier;
     if (description) this.description = description;
     if (tags) this.tags = tags;
@@ -423,24 +482,28 @@ export class Route extends LazyObject {
 
     return {
       name: await this.getName(),
-      gradeDisplayString: await this.getGradeDisplayString(),
       classifier: this.classifier!,
+      gradeDisplayString: await this.getGradeDisplayString(),
+      forumDocRefID: (await this.getForum()).docRef!.id,
+
       likes: await this.getLikes(),
       stringifiedTags: tagStringBuilder,
       status: await this.getStatus(),
       description: await this.getDescription(),
-      thumbnailUrl: (await this.hasThumbnail())
-        ? await this.getThumbnailUrl()
-        : DEFAULT_THUMBNAIL_TMP,
+      numSends: await this.getSendCount(),
+
+      starRating: await this.getStarRating(),
 
       setter: this.setter,
       setterRawName: this.setterRawName,
+      thumbnailUrl: (await this.hasThumbnail())
+        ? await this.getThumbnailUrl()
+        : DEFAULT_THUMBNAIL_TMP,
+        rope: this.rope,
       timestamp: this.timestamp,
-      rope: this.rope,
       color: this.color,
       naturalRules: this.naturalRules,
 
-      forumDocRefID: (await this.getForum()).docRef!.id,
       routeObject: this,
     } as FetchedRoute;
   }

@@ -14,11 +14,11 @@ import {
 import { ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../Firebase';
 import {
+  NaturalRules,
   QueryCursor,
   Route,
   RouteClassifier,
   RouteStatus,
-  NaturalRules,
   RouteType,
   Tag,
   User,
@@ -36,18 +36,21 @@ export function getRouteById(routeId: string) {
   return new Route(doc(db, 'routes', routeId));
 }
 
+export enum GetRouteByNameError {
+  NoSuchRoute = 'Failed to find the specified route',
+}
+
 /** getRouteByName
- * Returns a Firebase Route with the corresponding name, or undefined
+ * Returns a Firebase Route with the corresponding name
  * @param name: The Route's name
- * @remarks The returned Route is not guaranteed to have data in firebase.
- * This will result in subsequent getData() calls to throw.
+ * @throws if the specified route does not exist
  * @returns A Firebase Route, or undefined
  */
 export async function getRouteByName(name: string) {
   const q = await getDocs(
     query(collection(db, 'routes'), where('name', '==', name), limit(1))
   );
-  if (q.size === 0) return undefined;
+  if (q.size === 0) throw GetRouteByNameError.NoSuchRoute;
   const res = new Route(q.docs[0].ref);
   res.initWithDocumentData(q.docs[0].data());
   return res;
@@ -64,6 +67,10 @@ export interface CreateRouteArgs {
   color?: string;
   setterRawName?: string;
   naturalRules?: NaturalRules;
+}
+
+export enum CreateRouteError {
+  RouteNameExists = 'A route with this name already exists! Please choose another name.',
 }
 
 /** createRoute
@@ -93,7 +100,7 @@ export async function createRoute({
   naturalRules = undefined,
 }: CreateRouteArgs) {
   if ((await getRouteByName(name)) !== undefined)
-    return Promise.reject('Route with this name already exists!');
+    throw CreateRouteError.RouteNameExists;
   const newRouteDocRef = doc(collection(db, 'routes'));
   const newForumDocRef = doc(collection(db, 'forums'));
 
@@ -185,21 +192,25 @@ export function getDraftRoutesCursor() {
   );
 }
 
+export async function getArchivedRouteNames() {
+  return (await getDoc(doc(db, 'caches', 'archivedRoutes'))).data()!
+    .names as string[];
+}
+
+export function buildMatcher(names: string[]) {
+  return new SubstringMatcher<string>(names);
+}
+
+export function buildSet(names: string[]) {
+  return new Set<string>(names);
+}
+
 /** getArchivedRoutesSubstringMatcher
  * Get a matcher which will substring match the names of all archived routes
  */
 export async function getArchivedRoutesSubstringMatcher() {
   const names = await getDoc(doc(db, 'caches', 'archivedRoutes'));
-  return new SubstringMatcher<string>(names.data()!.names);
-}
-
-/** getAllBoulderClassifiers
- * Get list of all boulder classifiers
- */
-export function getAllBoulderClassifiers() {
-  return [-1, 0, 1, 2, 3, 4, 5, 6, 7].map(
-    (x) => new RouteClassifier(x, RouteType.Boulder)
-  );
+  return new SubstringMatcher<string>(await getArchivedRouteNames());
 }
 
 /** convertBoulderStringToClassifier
@@ -208,16 +219,33 @@ export function getAllBoulderClassifiers() {
  */
 export function convertBoulderStringToClassifier(boulderString: string) {
   const rawgrade = boulderString.endsWith('B')
-    ? -1
-    : parseInt(boulderString[boulderString.length - 1]);
+    ? 40
+    : parseInt(boulderString[boulderString.length - 1]) * 10 + 50;
   return new RouteClassifier(rawgrade, RouteType.Boulder);
 }
 
-/** getAllTraverseRouteClassifiers
- * Get list of all traverse classifiers
- */
 export function getAllTraverseRouteClassifiers() {
-  return [1, 2, 3, 4].map((x) => new RouteClassifier(x, RouteType.Traverse));
+  return ['Beginner', 'Intermediate', 'Advanced'].map(
+    convertTraverseStringToClassifier
+  );
+}
+
+export function getAllCompRouteClassifiers() {
+  return ['A', 'B', 'C', 'D'].map(convertCompetitionStringToClassifier);
+}
+
+export function getAllBoulderClassifiers() {
+  return ['VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7'].map(
+    convertBoulderStringToClassifier
+  );
+}
+
+export function getAllRopeDifficulties() {
+  return ['5.5', '5.6', '5.7', '5.8', '5.9', '5.10', '5.11', '5.12', '5.13'];
+}
+
+export function getAllRopeModifiers() {
+  return ['', '+', '-', 'A', 'B', 'C', 'D'];
 }
 
 /** convertTraverseStringToClassifier
@@ -225,18 +253,11 @@ export function getAllTraverseRouteClassifiers() {
  * @param traverseString: The traverse string to convert
  */
 export function convertTraverseStringToClassifier(traverseString: string) {
-  const rawgrade = traverseString.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
-  return new RouteClassifier(rawgrade, RouteType.Traverse);
-}
-
-/** getAllTopropeRouteClassifiers
- * Get list of all toprope classifiers
- */
-export function getAllTopropeRouteClassifiers() {
-  return [
-    49, 50, 51, 59, 60, 61, 69, 70, 71, 79, 80, 81, 89, 90, 91, 99, 100, 101,
-    109, 110, 111, 119, 120, 121, 129, 130, 131,
-  ].map((x) => new RouteClassifier(x, RouteType.Toprope));
+  if (traverseString == 'Beginner')
+    return new RouteClassifier(50, RouteType.Traverse);
+  if (traverseString == 'Intermediate')
+    return new RouteClassifier(70, RouteType.Traverse);
+  else return new RouteClassifier(90, RouteType.Traverse);
 }
 
 /** convertTopropeStringToClassifier
@@ -245,19 +266,13 @@ export function getAllTopropeRouteClassifiers() {
  */
 export function convertTopropeStringToClassifier(topropeString: string) {
   let rawgrade = parseInt(topropeString.split('.')[1]) * 10;
-  if (topropeString.endsWith('-')) rawgrade--;
-  else if (topropeString.endsWith('+')) rawgrade++;
+  if (topropeString.endsWith('A')) rawgrade -= 3;
+  if (topropeString.endsWith('-')) rawgrade -= 2;
+  if (topropeString.endsWith('B')) rawgrade -= 1;
+  if (topropeString.endsWith('C')) rawgrade += 1;
+  if (topropeString.endsWith('+')) rawgrade += 2;
+  if (topropeString.endsWith('D')) rawgrade += 3;
   return new RouteClassifier(rawgrade, RouteType.Toprope);
-}
-
-/** getAllLeadclimbRouteClassifiers
- * Get list of all lead climb classifiers
- */
-export function getAllLeadclimbRouteClassifiers() {
-  return [
-    49, 50, 51, 59, 60, 61, 69, 70, 71, 79, 80, 81, 89, 90, 91, 99, 100, 101,
-    109, 110, 111, 119, 120, 121, 129, 130, 131,
-  ].map((x) => new RouteClassifier(x, RouteType.Leadclimb));
 }
 
 /** convertLeadclimbStringToClassifier
@@ -266,16 +281,13 @@ export function getAllLeadclimbRouteClassifiers() {
  */
 export function convertLeadclimbStringToClassifier(leadclimbString: string) {
   let rawgrade = parseInt(leadclimbString.split('.')[1]) * 10;
-  if (leadclimbString.endsWith('-')) rawgrade--;
-  else if (leadclimbString.endsWith('+')) rawgrade++;
+  if (leadclimbString.endsWith('A')) rawgrade -= 3;
+  if (leadclimbString.endsWith('-')) rawgrade -= 2;
+  if (leadclimbString.endsWith('B')) rawgrade -= 1;
+  if (leadclimbString.endsWith('C')) rawgrade += 1;
+  if (leadclimbString.endsWith('+')) rawgrade += 2;
+  if (leadclimbString.endsWith('D')) rawgrade += 3;
   return new RouteClassifier(rawgrade, RouteType.Leadclimb);
-}
-
-/** getAllCompetitionRouteClassifiers
- * Get list of all comp route classifiers
- */
-export function getAllCompetitionRouteClassifiers() {
-  return [1, 2, 3, 4].map((x) => new RouteClassifier(x, RouteType.Competition));
 }
 
 /** convertCompetitionStringToClassifier
@@ -285,18 +297,6 @@ export function getAllCompetitionRouteClassifiers() {
 export function convertCompetitionStringToClassifier(
   competitionString: string
 ) {
-  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
-  return new RouteClassifier(rawgrade, RouteType.Competition);
-}
-
-/** getAllRouteClassifiers
- * Get list of all route classifiers of all types
- */
-export function getAllRouteClassifiers() {
-  return getAllBoulderClassifiers().concat(
-    getAllTraverseRouteClassifiers(),
-    getAllLeadclimbRouteClassifiers(),
-    getAllCompetitionRouteClassifiers(),
-    getAllTopropeRouteClassifiers()
-  );
+  const rawgrade = competitionString.charCodeAt(0) - 'A'.charCodeAt(0);
+  return new RouteClassifier(rawgrade * 20 + 50, RouteType.Competition);
 }

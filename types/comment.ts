@@ -21,8 +21,8 @@ export type FetchedComment = {
   textContent: string;
   post: Post;
   postDocRefId: string;
-
   likes: User[];
+  shouldBeHidden: boolean;
 
   commentObject: Comment;
 };
@@ -126,6 +126,7 @@ export class Comment extends LazyObject {
       post: await this.getPost(),
       postDocRefId: (await this.getPost()).docRef!.id,
       likes: await this.getLikes(),
+      shouldBeHidden: await this.checkShouldBeHidden(),
       commentObject: this,
     } as FetchedComment;
   }

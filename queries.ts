@@ -5,6 +5,10 @@ import {
 } from 'firebase/firestore';
 import { LazyObject } from './types/common';
 
+export * from './queries/feed';
+export * from './queries/forum';
+export * from './queries/leaderboard';
+export * from './queries/post';
 export * from './queries/user';
 
 export function constructPageData<T extends LazyObject>(

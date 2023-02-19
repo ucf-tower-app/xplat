@@ -3,6 +3,7 @@ import {
   EmailAuthProvider,
   deleteUser,
   reauthenticateWithCredential,
+  updateEmail,
   updatePassword,
 } from 'firebase/auth';
 import {
@@ -33,7 +34,14 @@ import {
 } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { DEFAULT_AVATAR_PATH, auth, db, storage } from '../Firebase';
+import {
+  DEFAULT_AVATAR_PATH,
+  DEFAULT_BIO,
+  DEFAULT_DISPLAY_NAME,
+  auth,
+  db,
+  storage,
+} from '../Firebase';
 import { isKnightsEmail, validDisplayname } from '../api';
 import {
   ArrayCursor,
@@ -53,7 +61,6 @@ import {
 export interface FetchedUser {
   docRefId: string;
   username: string;
-  email: string;
   displayName: string;
   bio: string;
   status: UserStatus;
@@ -65,16 +72,29 @@ export interface FetchedUser {
   totalSends: number;
   userObject: User;
 }
+
+export enum UserActionError {
+  EmployeeReport = "Can't report an employee's content!",
+  NotSignedIn = 'This action requires being signed in!',
+  NotYourUser = 'You cannot perform this action on behalf of another user',
+  NotAnEmployee = 'This action can only be performed by employees',
+  IncorrectOldEmail = 'Must provide your old email!',
+  MusntBeManager = 'Unable to perform this action as a manager account. Please ensure there are other manager accounts and demote this account.',
+  AlreadyKnights = "Unable to change an account's email which is already using a knights email.",
+  AvatarTooLarge = 'Avatar too large!',
+  InvalidDisplayName = 'InvalidDisplayName',
+}
+
 export class User extends LazyObject {
   // Expected and required when getting data
   public username?: string;
-  public email?: string;
   public displayName?: string;
   public bio?: string;
   public status?: UserStatus;
 
   // Filled with defaults if not present when getting data
   public following?: User[];
+  public followers?: User[];
   public avatar?: LazyStaticImage;
   public totalPostSizeInBytes?: number;
   public totalSends?: Map<RouteType, number>;
@@ -84,12 +104,14 @@ export class User extends LazyObject {
 
   public initWithDocumentData(data: DocumentData): void {
     this.username = data.username;
-    this.email = data.email;
     this.displayName = data.displayName;
     this.bio = data.bio;
     this.status = data.status as UserStatus;
 
     this.following = (data.following ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.followers = (data.followers ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
 
@@ -118,7 +140,7 @@ export class User extends LazyObject {
   public async addReport(content: Post | Comment | User) {
     // check that the content to be reported isn't from an employee/manager, we don't want to automod them
     if ((await (await content.getAuthor()).getStatus()) >= UserStatus.Employee)
-      return Promise.reject('Cant report an employees content');
+      throw UserActionError.EmployeeReport;
 
     if (!content.hasData) await content.getData();
 
@@ -199,8 +221,13 @@ export class User extends LazyObject {
     // might as well do it now.
     if (!this.hasData) await this.getData();
     if (containsRef(this.following!, other)) return;
-    this.following!.push(other);
-    return updateDoc(this.docRef!, { following: arrayUnion(other.docRef) });
+
+    return Promise.all([
+      updateDoc(this.docRef!, {
+        following: arrayUnion(other.docRef),
+      }).then(() => this.following!.push(other)),
+      updateDoc(other.docRef!, { followers: arrayUnion(this.docRef) }),
+    ]);
   }
 
   /** unfollowUser
@@ -212,8 +239,12 @@ export class User extends LazyObject {
     // If this user has data and their following array doesn't contain the other user, return
     if (!this.hasData) await this.getData();
     if (!containsRef(this.following!, other)) return;
-    removeRef(this.following!, other);
-    return updateDoc(this.docRef!, { following: arrayRemove(other.docRef) });
+    return Promise.all([
+      updateDoc(this.docRef!, {
+        following: arrayRemove(other.docRef),
+      }).then(() => removeRef(this.following!, other)),
+      updateDoc(other.docRef!, { followers: arrayRemove(this.docRef) }),
+    ]);
   }
 
   /** delete
@@ -225,17 +256,14 @@ export class User extends LazyObject {
    * @param password: The user's auth password. Required by auth.
    */
   public async delete(password: string) {
-    if (!auth.currentUser) return Promise.reject('Not signed in!');
-    if (auth.currentUser.uid != this.docRef!.id)
-      return Promise.reject(
-        'Cannot delete User to which you are not signed in.'
-      );
+    if (!auth.currentUser) throw UserActionError.NotSignedIn;
+    if (auth.currentUser.uid != this.docRef!.id) UserActionError.NotYourUser;
 
     await this.getData(true);
     // Force update to have best non-guaranteed recent data
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, password)
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
     );
 
     const preTasks: Promise<any>[] = [];
@@ -263,6 +291,11 @@ export class User extends LazyObject {
           ref: this.docRef!,
         }),
       });
+      this.followers?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          following: arrayRemove(this.docRef!),
+        })
+      );
     });
     console.log('Main transaction done');
 
@@ -278,8 +311,8 @@ export class User extends LazyObject {
    */
   public async clearAllReports(content: Post | Comment | User) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee)
-      return Promise.reject('Not an employee, cant moderate!');
+
+    if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     content.getData();
 
@@ -323,8 +356,8 @@ export class User extends LazyObject {
     modReason: string
   ) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee)
-      return Promise.reject('Not an employee, cant moderate!');
+
+    if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     if (!content.hasData) await content.getData();
 
@@ -391,31 +424,6 @@ export class User extends LazyObject {
       { merge: true }
     );
 
-    // todo test above & delete below
-    // const modHistorySnap = await getDoc(modHistoryDocRef);
-    // // If the document already exists, add the modAction to the list
-    // if (modHistorySnap.exists()) {
-    //   await updateDoc(modHistoryDocRef, {
-    //     actions: arrayUnion({
-    //       userModerated: userModerated.docRef!,
-    //       moderator: moderator.docRef!,
-    //       modReason: modReason,
-    //       timestamp: Timestamp.now(),
-    //     }),
-    //   });
-    // }
-    // // If the document does not exist, create it and add the modAction
-    // else {
-    //   await setDoc(modHistoryDocRef, {
-    //     timestamp: Timestamp.now(),
-    //     actions: {
-    //       userModerated: userModerated.docRef!,
-    //       moderator: moderator.docRef!,
-    //       modReason: modReason,
-    //       timestamp: Timestamp.now(),
-    //     },
-    //   });
-    // }
   }
 
   /** banUser
@@ -427,12 +435,12 @@ export class User extends LazyObject {
    */
   public async banUser(user: User, modReason: string, password: string) {
     await this.checkIfSignedIn();
-    if (this.status! < UserStatus.Employee)
-      return Promise.reject('Not an employee, cant moderate!');
+
+    if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, password)
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
     );
 
     user.getData();
@@ -539,7 +547,7 @@ export class User extends LazyObject {
 
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, password)
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
     );
 
     return runTransaction(db, async (transaction) => {
@@ -622,11 +630,9 @@ export class User extends LazyObject {
    * @returns A resolved promise if this is the current auth user.
    */
   public async checkIfSignedIn(): Promise<void> {
-    if (!auth.currentUser) return Promise.reject('Not signed in!');
+    if (!auth.currentUser) throw UserActionError.NotSignedIn;
     if (auth.currentUser.uid != this.docRef!.id)
-      return Promise.reject(
-        'Cannot perform this action on behalf of someone else.'
-      );
+      throw UserActionError.NotYourUser;
   }
 
   /** changePassword
@@ -638,9 +644,34 @@ export class User extends LazyObject {
     await this.checkIfSignedIn();
     await reauthenticateWithCredential(
       auth.currentUser!,
-      EmailAuthProvider.credential(this.email!, oldPassword)
+      EmailAuthProvider.credential(auth.currentUser!.email!, oldPassword)
     );
     return updatePassword(auth.currentUser!, newPassword);
+  }
+
+  public async changeEmail(
+    oldEmail: string,
+    newEmail: string,
+    password: string
+  ) {
+    await this.checkIfSignedIn();
+    await this.getData();
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
+    );
+    if (auth.currentUser!.email! !== oldEmail)
+      throw UserActionError.IncorrectOldEmail;
+    if (this.status! === UserStatus.Manager)
+      throw UserActionError.MusntBeManager;
+    if (isKnightsEmail(oldEmail)) throw UserActionError.AlreadyKnights;
+
+    return updateEmail(auth.currentUser!, newEmail).then(() => {
+      updateDoc(this.docRef!, {
+        email: newEmail,
+        status: UserStatus.Unverified,
+      });
+    });
   }
 
   /** getRecentSendsCursor
@@ -656,6 +687,11 @@ export class User extends LazyObject {
     );
   }
 
+  /**
+   * @deprecated Please don't use
+   * @param email \
+   * @param transaction
+   */
   public verifyEmailWithinTransaction(email: string, transaction: Transaction) {
     if (isKnightsEmail(email)) this.status = UserStatus.Approved;
     else this.status = UserStatus.Verified;
@@ -744,7 +780,7 @@ export class User extends LazyObject {
   public async setAvatar(avatar: Blob) {
     await this.checkIfSignedIn();
 
-    if (avatar.size > 100_000) return Promise.reject('Avatar too large!');
+    if (avatar.size > 100000) throw UserActionError.AvatarTooLarge;
 
     if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
       await deleteObject(this.avatar.getStorageRef());
@@ -759,6 +795,22 @@ export class User extends LazyObject {
     });
   }
 
+  /** setAvatarToDefault
+   * Set this user's avatar to the default avatar.
+   * For functions like reporting a user where we don't want to remove their reported avatar from the DB yet
+   */
+  public async setAvatarToDefault() {
+    await this.checkIfSignedIn();
+
+    return runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
+      this.avatar = new LazyStaticImage(DEFAULT_AVATAR_PATH);
+      transaction.update(this.docRef!, {
+        avatar: DEFAULT_AVATAR_PATH,
+      });
+    });
+  }
+
   public async setBio(bio: string) {
     await this.checkIfSignedIn();
     return updateDoc(this.docRef!, { bio: bio }).then(() => (this.bio = bio));
@@ -768,7 +820,7 @@ export class User extends LazyObject {
     await this.checkIfSignedIn();
     if (this.displayName! === displayName) return;
     if (!validDisplayname(displayName))
-      return Promise.reject('Invalid Display Name!');
+      throw UserActionError.InvalidDisplayName;
 
     return runTransaction(db, async (transaction) => {
       const cacheDocRef = doc(db, 'caches', 'users');
@@ -812,18 +864,44 @@ export class User extends LazyObject {
     }
   }
 
+  /** checkShouldBeHidden
+   * Checks if this user's avatar, bio, and display name should be hidden.
+   * @returns true if this content should be hidden, false if not
+   */
+  public async checkShouldBeHidden() {
+    if (!this.hasData) await this.getData();
+    return this.reports!.length >= 5;
+  }
+
+  /** hideProfileContent
+   * Client-side setting of profile content to be default avatar & under review.
+   * No public shaming like "under review", just set to defaults.
+   */
+  public async hideProfileContent() {
+    if (!this.hasData) await this.getData();
+    this.avatar = new LazyStaticImage(DEFAULT_AVATAR_PATH);
+    this.bio = "I'm a new climber!";
+    this.displayName = 'Tower Climber';
+  }
+
   // ======================== Fetchers and Builders ========================
 
   public async fetch() {
+    let shouldBeHidden: Boolean = await this.checkShouldBeHidden();
+
     return {
       docRefId: this.docRef!.id,
       username: await this.getUsername(),
-      email: await this.getEmail(),
-      displayName: await this.getDisplayName(),
-      bio: await this.getBio(),
       status: await this.getStatus(),
-      avatarUrl: await this.getAvatarUrl(),
+      displayName: shouldBeHidden
+        ? DEFAULT_DISPLAY_NAME
+        : await this.getDisplayName(),
+      bio: shouldBeHidden ? DEFAULT_BIO : await this.getBio(),
+      avatarUrl: shouldBeHidden
+        ? getDownloadURL(ref(storage, DEFAULT_AVATAR_PATH))
+        : await this.getAvatarUrl(),
       followingList: this.following ?? [],
+      followersList: this.followers ?? [],
       totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
       bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
       bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
@@ -903,13 +981,6 @@ export class User extends LazyObject {
     return this.username!;
   }
 
-  /** getEmail()
-   */
-  public async getEmail() {
-    if (!this.hasData) await this.getData();
-    return this.email!;
-  }
-
   /** getDisplayName()
    */
   public async getDisplayName() {
@@ -935,7 +1006,6 @@ export class User extends LazyObject {
 export class UserMock extends User {
   constructor(
     username: string,
-    email: string,
     displayName: string,
     bio: string,
     status: UserStatus,
@@ -946,7 +1016,6 @@ export class UserMock extends User {
   ) {
     super();
     this.username = username;
-    this.email = email;
     this.displayName = displayName;
     this.bio = bio;
     this.status = status;
