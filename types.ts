@@ -11,3 +11,5 @@ export * from './types/send';
 export * from './types/substringMatcher';
 export * from './types/tag';
 export * from './types/user';
+export * from './types/report';
+export * from './types/modAction';

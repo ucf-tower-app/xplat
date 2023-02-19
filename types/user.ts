@@ -9,6 +9,7 @@ import {
 import {
   DocumentData,
   DocumentReference,
+  Timestamp,
   Transaction,
   arrayRemove,
   arrayUnion,
@@ -310,6 +311,7 @@ export class User extends LazyObject {
    */
   public async clearAllReports(content: Post | Comment | User) {
     await this.checkIfSignedIn();
+
     if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     content.getData();
@@ -317,6 +319,13 @@ export class User extends LazyObject {
     // update client side by deleting all reports from the content's report array
     content.reports = content.reports?.filter(
       (report) => !refEqual(report.docRef!, this.docRef!)
+    );
+
+    // add a modHistory entry
+    this.addModAction(
+      await content.getAuthor(),
+      this,
+      'Cleared all reports on this content.'
     );
 
     // update server side: get all reports on this content from the reports collection
@@ -347,6 +356,7 @@ export class User extends LazyObject {
     modReason: string
   ) {
     await this.checkIfSignedIn();
+
     if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     if (!content.hasData) await content.getData();
@@ -364,13 +374,56 @@ export class User extends LazyObject {
     }
 
     // add a modHistory entry
-    const modHistoryDocRef = doc(db, 'modHistory');
-    return setDoc(modHistoryDocRef, {
-      userModerated: (await content.getAuthor()).username,
-      mod: this.docRef,
-      modReason: modReason,
-      timestamp: serverTimestamp(),
-    });
+    this.addModAction(
+      await content.getAuthor(),
+      this,
+      'Deleted reported content: ' + modReason
+    );
+  }
+
+  /** getDateMM_DD_YYYY
+   * @returns the current date in the format MM_DD_YYYY
+   */
+  public async getDateMM_DD_YYYY() {
+    const date = new Date();
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear().toString();
+    return `${month}_${day}_${year}`;
+  }
+
+  /** addModAction
+   * Add a modAction array entry to the current day's doc in modHistory.
+   * @remarks this function should not be called directly.
+   * @param userModerated: the user who was moderated
+   * @param moderator: the user who moderated
+   * @param modReason: the reason for the moderation
+   */
+  public async addModAction(
+    userModerated: User,
+    moderator: User,
+    modReason: String
+  ) {
+    const documentId = await this.getDateMM_DD_YYYY();
+    const modHistoryDocRef = await doc(db, 'modHistory', documentId);
+
+    // Creates doc or updates it with the new modAction
+    await setDoc(
+      modHistoryDocRef,
+      {
+        timestamp: Timestamp.now(),
+        actions: arrayUnion({
+          userModeratedUsername: await userModerated.getUsername(),
+          moderatorUsername: await moderator.getUsername(),
+          modReason: modReason,
+          timestamp: Timestamp.now(),
+          userModerated: userModerated.docRef!,
+          moderator: moderator.docRef!,
+        }),
+      },
+      { merge: true }
+    );
+
   }
 
   /** banUser
@@ -382,6 +435,7 @@ export class User extends LazyObject {
    */
   public async banUser(user: User, modReason: string, password: string) {
     await this.checkIfSignedIn();
+
     if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
 
     await reauthenticateWithCredential(
@@ -426,6 +480,9 @@ export class User extends LazyObject {
       user.status = UserStatus.Banned;
       transaction.update(user.docRef!, { status: UserStatus.Banned });
     });
+
+    // add a modHistory entry
+    this.addModAction(user, this, 'Banned user: ' + modReason);
   }
 
   /** approveOtherUser
@@ -448,6 +505,9 @@ export class User extends LazyObject {
         other.status = UserStatus.Approved;
         transaction.update(other.docRef!, { status: UserStatus.Approved });
       }
+
+      // add a modHistory entry
+      this.addModAction(other, this, 'Promoted this user to approved.');
     });
   }
 
@@ -471,6 +531,9 @@ export class User extends LazyObject {
         other.status = UserStatus.Employee;
         transaction.update(other.docRef!, { status: UserStatus.Employee });
       }
+
+      // add a modHistory entry
+      this.addModAction(other, this, 'Promoted this user to employee.');
     });
   }
 
@@ -503,6 +566,9 @@ export class User extends LazyObject {
           transaction.update(this.docRef!, { status: UserStatus.Employee });
         }
       }
+
+      // add a modHistory entry
+      this.addModAction(other, this, 'Promoted this user to manager.');
     });
   }
 
@@ -526,6 +592,9 @@ export class User extends LazyObject {
         other.status = UserStatus.Approved;
         transaction.update(other.docRef!, { status: UserStatus.Approved });
       }
+
+      // add a modHistory entry
+      this.addModAction(other, this, 'Demoted this employee to approved.');
     });
   }
 
@@ -550,6 +619,9 @@ export class User extends LazyObject {
         other.status = UserStatus.Verified;
         transaction.update(other.docRef!, { status: UserStatus.Verified });
       }
+
+      // add a modHistory entry
+      this.addModAction(other, this, 'Demoted this user to verified.');
     });
   }
 
