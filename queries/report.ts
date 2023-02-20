@@ -5,7 +5,10 @@ import {
   orderBy,
   query,
   startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from 'firebase/firestore';
+import { Post, Comment, User } from '../types';
 import { db } from '../Firebase';
 
 const STRIDE = 3;
@@ -30,4 +33,31 @@ export function getIQParams_Reports() {
       else return lastPage[lastPage.length - 1];
     },
   };
+}
+
+export type ReportedContent = {
+  content: User | Comment | Post;
+  reporters: User[];
+}
+
+export function constructReportPageData(docs: QueryDocumentSnapshot<DocumentData>[]) {
+  return docs.map((doc) => {
+    const data = doc.data();
+    console.log(data);
+    const pathArr = data.content._key.path.segments;
+    if (pathArr.includes('posts'))
+    {
+      const p = new Post(pathArr[pathArr.length - 1]);
+      return p; 
+    }
+    if (pathArr.includes('comments'))
+    {
+      const c = new Comment(pathArr[pathArr.length - 1]);
+      return c;
+    }
+    
+    const u = new User(pathArr[pathArr.length - 1]);
+    return u;
+    
+  });
 }

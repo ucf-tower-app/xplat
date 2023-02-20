@@ -10,6 +10,7 @@ export * from './queries/forum';
 export * from './queries/leaderboard';
 export * from './queries/post';
 export * from './queries/user';
+export * from './queries/report';
 
 export function constructPageData<T extends LazyObject>(
   Tcreator: new (data: DocumentReference) => T,
