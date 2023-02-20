@@ -99,8 +99,10 @@ export async function createRoute({
   setterRawName = undefined,
   naturalRules = undefined,
 }: CreateRouteArgs) {
-  if ((await getRouteByName(name)) !== undefined)
+  try {
+    await getRouteByName(name);
     throw CreateRouteError.RouteNameExists;
+  } catch {}
   const newRouteDocRef = doc(collection(db, 'routes'));
   const newForumDocRef = doc(collection(db, 'forums'));
 
