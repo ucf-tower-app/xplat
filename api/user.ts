@@ -20,7 +20,14 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { auth, db, functions_sendMail } from '../Firebase';
+import { getDownloadURL, ref } from 'firebase/storage';
+import {
+  DEFAULT_AVATAR_PATH,
+  auth,
+  db,
+  functions_sendMail,
+  storage,
+} from '../Firebase';
 import { SubstringMatcher, User, UserStatus } from '../types';
 
 /** isKnightsEmail
@@ -273,6 +280,12 @@ export function buildUserSubstringMatcher(cacheData: UserCacheData) {
     spread.get(obj.displayName)?.push(res);
   });
   return new SubstringMatcher(spread);
+}
+
+export async function getAvatarUrl(userDocRefId: string) {
+  return getDownloadURL(ref(storage, 'avatars/' + userDocRefId)).catch(() =>
+    getDownloadURL(ref(storage, DEFAULT_AVATAR_PATH))
+  );
 }
 
 // To uncomment if the cache changes and it needs to be reset. there's a lot of users and it's a pain to do manually.
