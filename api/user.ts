@@ -23,6 +23,9 @@ import {
 import { getDownloadURL, ref } from 'firebase/storage';
 import {
   DEFAULT_AVATAR_PATH,
+  UCFTOWEREVENTS_DOCREF,
+  UCFTOWERSETTERS_DOCREF,
+  UCFTOWERSTAFF_DOCREF,
   auth,
   db,
   functions_sendMail,
@@ -40,11 +43,11 @@ export function isKnightsEmail(email: string): boolean {
 }
 
 /** validUsername
- * Check whether a username is 5-15 lowercase a-z characters
+ * Check whether a username is 3-15 lowercase a-z characters
  * @param username
  */
 export function validUsername(username: string): boolean {
-  return username.match('^[a-z]{5,15}$') !== null;
+  return username.match('^[a-z]{3,15}$') !== null;
 }
 
 /** validDisplayname
@@ -106,6 +109,11 @@ export async function createUser(
           email: email,
           displayName: displayName,
           bio: "I'm a new climber!",
+          following: [
+            UCFTOWERSTAFF_DOCREF,
+            UCFTOWEREVENTS_DOCREF,
+            UCFTOWERSETTERS_DOCREF,
+          ],
           status: UserStatus.Unverified,
           createdOn: serverTimestamp(),
         });
