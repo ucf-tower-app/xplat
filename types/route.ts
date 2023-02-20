@@ -19,7 +19,7 @@ import {
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { db, storage } from '../Firebase';
+import { UCFTOWERSETTERS_DOCREF, db, storage } from '../Firebase';
 import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from '../types';
 
 export enum RouteType {
@@ -272,9 +272,22 @@ export class Route extends LazyObject {
       if (client_oldStatus != server_oldStatus) return;
       if (client_oldStatus == RouteStatus.Archived) return;
       else if (client_oldStatus == RouteStatus.Draft) {
+        const newPostDocRef = doc(collection(db, 'posts'));
         transaction.update(this.docRef!, {
           status: RouteStatus.Active,
           timestamp: serverTimestamp(),
+        });
+        transaction.set(newPostDocRef, {
+          author: UCFTOWERSETTERS_DOCREF,
+          timestamp: serverTimestamp(),
+          textContent:
+            'A new route has just been set: ' +
+            this.name! +
+            ' (' +
+            this.classifier!.displayString +
+            ')' +
+            (this.rope !== undefined ? ' on rope ' + this.rope : '') +
+            '. Check it out!',
         });
         this.status = RouteStatus.Active;
       } else {
@@ -499,7 +512,7 @@ export class Route extends LazyObject {
       thumbnailUrl: (await this.hasThumbnail())
         ? await this.getThumbnailUrl()
         : DEFAULT_THUMBNAIL_TMP,
-        rope: this.rope,
+      rope: this.rope,
       timestamp: this.timestamp,
       color: this.color,
       naturalRules: this.naturalRules,
