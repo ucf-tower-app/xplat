@@ -1,2 +1,2 @@
 # xplat
-Cross platform/application utilities.
+Cross platform/application utilities for Tower
