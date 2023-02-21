@@ -22,6 +22,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
 import {
   Comment,
+  Report,
   Forum,
   LazyObject,
   LazyStaticImage,
@@ -143,6 +144,19 @@ export class Post extends LazyObject {
       5,
       collection(db, 'comments'),
       where('post', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
+  }
+
+  /** getReportsCursor
+   * get a QueryCursor for a Post's reports starting from most recent
+   */
+  public getReportsCursor() {
+    return new QueryCursor(
+      Report,
+      5,
+      collection(db, 'reports'),
+      where('content', '==', this.docRef!),
       orderBy('timestamp', 'desc')
     );
   }
@@ -311,17 +325,21 @@ export class Post extends LazyObject {
     await deleteVideo;
   }
 
-  public async delete() {
+  public async delete() { // todo test
     if (!this.docRef) return;
     await this.getData(true);
     const size = await this.getStaticContentSizeInBytes();
     const tasks = [];
     tasks.push(this.deleteStaticContent());
 
+    // Delete comments and reports on this post
     // It's fine because they'd have to be read to be deleted anyway :)
     (
       await this.getCommentsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
     ).forEach((cmt) => tasks.push(deleteDoc(cmt?.docRef!)));
+    (
+      await this.getReportsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+    ).forEach((rpt) => tasks.push(deleteDoc(rpt?.docRef!)));
 
     tasks.push(
       runTransaction(db, async (transaction: Transaction) => {
