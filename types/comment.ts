@@ -83,9 +83,10 @@ export class Comment extends LazyObject {
   /** delete
    * Delete this comment
    */
-  public async delete() { // todo test
+  public async delete() {
     // no longer refreshingly simple :(
     if (!this.docRef) return;
+    await this.getData(true);
     const tasks = [];
 
     (
@@ -93,6 +94,8 @@ export class Comment extends LazyObject {
     ).forEach((rpt) => tasks.push(deleteDoc(rpt?.docRef!)));
 
     tasks.push(deleteDoc(this.docRef!));
+
+    console.log('deleting ' + tasks.length + ' comments');
 
     return Promise.all(tasks);
   }

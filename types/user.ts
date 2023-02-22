@@ -269,20 +269,26 @@ export class User extends LazyObject {
     if (!this.docRef) return;
     const tasks: any[] = [];
 
-    // delete all reports // todo test
+    // delete all their reports
+    console.log('about to delete reports from user');
+
     (
     await this.getReportsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
     ).forEach((rpt) => tasks.push(deleteDoc(rpt?.docRef!)));
 
-    // delete all posts // todo test
+    console.log('about to delete all posts from user');
+    // delete all their posts, which also deletes posts' reports & comments & comments' reports
     (
     await this.getPostsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
-    ).forEach((post) => tasks.push(deleteDoc(post?.docRef!)));
+    ).forEach((post) => tasks.push(post?.delete()));
 
-    // delete all comments // todo test
+    console.log('about to delete all comments from user');
+    // delete all ther comments, which also deletes comments' reports
     (
     await this.getCommentsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
-    ).forEach((cmt) => tasks.push(deleteDoc(cmt?.docRef!)));
+    ).forEach((cmt) => tasks.push(cmt?.delete()));
+
+    console.log('clearing effects ' + tasks.length + ' tasks');
 
     await Promise.all(tasks);
   }

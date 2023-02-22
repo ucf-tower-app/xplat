@@ -22,12 +22,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
 import {
   Comment,
-  Report,
   Forum,
   LazyObject,
   LazyStaticImage,
   LazyStaticVideo,
   QueryCursor,
+  Report,
   User,
   containsRef,
 } from '../types';
@@ -325,7 +325,7 @@ export class Post extends LazyObject {
     await deleteVideo;
   }
 
-  public async delete() { // todo test
+  public async delete() {
     if (!this.docRef) return;
     await this.getData(true);
     const size = await this.getStaticContentSizeInBytes();
@@ -334,9 +334,10 @@ export class Post extends LazyObject {
 
     // Delete comments and reports on this post
     // It's fine because they'd have to be read to be deleted anyway :)
+    console.log('about to delete comments from posts');
     (
       await this.getCommentsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
-    ).forEach((cmt) => tasks.push(deleteDoc(cmt?.docRef!)));
+    ).forEach((cmt) => tasks.push(cmt?.delete()));
     (
       await this.getReportsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
     ).forEach((rpt) => tasks.push(deleteDoc(rpt?.docRef!)));
@@ -354,6 +355,9 @@ export class Post extends LazyObject {
           .delete(this.docRef!);
       })
     );
+
+    console.log('deleting ' + tasks.length + ' posts & comments');
+
     return Promise.all(tasks);
   }
 }
