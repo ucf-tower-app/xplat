@@ -1,9 +1,9 @@
 import { getDoc } from 'firebase/firestore';
 import { getUserById } from '../api';
 import {
-  User,
   getMonthlyLeaderboardDocRef,
   getSemesterLeaderboardDocRef,
+  User,
 } from '../types';
 
 export interface LeaderboardEntry {
@@ -13,9 +13,13 @@ export interface LeaderboardEntry {
   sends: number;
 }
 
+export function getRQKey_MonthlyLeaderboard(date: Date) {
+  return ['leaderboard', getMonthlyLeaderboardDocRef(date).id];
+}
+
 export function getRQParams_MonthlyLeaderboard(date: Date) {
   return {
-    queryKey: ['leaderboard', getMonthlyLeaderboardDocRef(date).id],
+    queryKey: getRQKey_MonthlyLeaderboard(date),
     queryFn: async () => {
       return getDoc(getMonthlyLeaderboardDocRef(date)).then((snap) => {
         if (snap.exists()) {
@@ -36,9 +40,13 @@ export function getRQParams_MonthlyLeaderboard(date: Date) {
   };
 }
 
+export function getRQKey_SemesterLeaderboard(date: Date) {
+  return ['leaderboard', getSemesterLeaderboardDocRef(date).id];
+}
+
 export function getRQParams_SemesterLeaderboard(date: Date) {
   return {
-    queryKey: ['leaderboard', getSemesterLeaderboardDocRef(date).id],
+    queryKey: getRQKey_SemesterLeaderboard(date),
     queryFn: async () => {
       return getDoc(getSemesterLeaderboardDocRef(date)).then((snap) => {
         if (snap.exists()) {
