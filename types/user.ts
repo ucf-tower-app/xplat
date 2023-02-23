@@ -398,20 +398,18 @@ export class User extends LazyObject {
 
     if (!content.hasData) await content.getData();
 
-    this.clearAllReports(content);
+    await this.clearAllReports(content);
     // if content is a post or comment, delete it.
-    if (content instanceof Post || content instanceof Comment) content.delete();
+    if (content instanceof Post || content instanceof Comment) await content.delete();
     // if content is a user, remove their avatar & bio & displayname.
     else if (content instanceof User) {
-      content.deleteAvatar();
-      content.setBio(
+      await Promise.all([content.deleteAvatar(),content.setBio(
         'My profile content got deleted by a moderator and I am so embarrassed.'
-      );
-      content.setDisplayName('Disappointment');
+      ), content.setDisplayName('Disappointment') ]);
     }
 
     // add a modHistory entry
-    this.addModAction(
+    await this.addModAction(
       await content.getAuthor(),
       this,
       'Deleted reported content: ' + modReason
