@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  DocumentData,
-  DocumentReference,
   arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
   doc,
+  DocumentData,
+  DocumentReference,
   getDocs,
   increment,
   limit,
@@ -19,7 +19,7 @@ import {
 import { deleteObject, ref, uploadBytes } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { UCFTOWERSETTERS_DOCREF, db, storage } from '../Firebase';
+import { db, storage, UCFTOWERSETTERS_DOCREF } from '../Firebase';
 import { Forum, LazyObject, LazyStaticImage, Send, Tag, User } from '../types';
 
 export enum RouteType {
@@ -368,6 +368,7 @@ export class Route extends LazyObject {
           route: this.docRef!,
           timestamp: serverTimestamp(),
           rawgrade: this.classifier!.rawgrade,
+          routename: this.name!,
           type: this.classifier!.type as string,
         })
         .update(sender.docRef!, {
