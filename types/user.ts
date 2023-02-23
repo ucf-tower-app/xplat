@@ -1,21 +1,19 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  EmailAuthProvider,
   deleteUser,
+  EmailAuthProvider,
   reauthenticateWithCredential,
   updateEmail,
   updatePassword,
 } from 'firebase/auth';
 import {
-  DocumentData,
-  DocumentReference,
-  Timestamp,
-  Transaction,
   arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
   doc,
+  DocumentData,
+  DocumentReference,
   getDocs,
   orderBy,
   query,
@@ -23,6 +21,8 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  Timestamp,
+  Transaction,
   updateDoc,
   where,
 } from 'firebase/firestore';
@@ -34,29 +34,29 @@ import {
 } from 'firebase/storage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { isKnightsEmail, validDisplayname } from '../api';
 import {
+  auth,
+  db,
   DEFAULT_AVATAR_PATH,
   DEFAULT_BIO,
   DEFAULT_DISPLAY_NAME,
-  auth,
-  db,
   storage,
 } from '../Firebase';
-import { isKnightsEmail, validDisplayname } from '../api';
 import {
   ArrayCursor,
   Comment,
+  containsRef,
   LazyObject,
   LazyStaticImage,
   Post,
   QueryCursor,
   Report,
+  removeRef,
   RouteClassifier,
   RouteType,
   Send,
   UserStatus,
-  containsRef,
-  removeRef,
 } from '../types';
 
 export interface FetchedUser {
@@ -67,6 +67,7 @@ export interface FetchedUser {
   status: UserStatus;
   avatarUrl: string;
   followingList: User[];
+  followersList: User[];
   totalPostSizeInBytes: number;
   bestBoulder: RouteClassifier | undefined;
   bestToprope: RouteClassifier | undefined;
