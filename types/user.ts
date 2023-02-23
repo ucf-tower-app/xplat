@@ -51,6 +51,7 @@ import {
   LazyStaticImage,
   Post,
   QueryCursor,
+  Report,
   removeRef,
   RouteClassifier,
   RouteType,
@@ -248,6 +249,43 @@ export class User extends LazyObject {
     ]);
   }
 
+  /** getReportsCursor
+   * get a QueryCursor for a Comment's reports starting from most recent
+   */
+  public getReportsCursor() {
+    return new QueryCursor(
+      Report,
+      5,
+      collection(db, 'reports'),
+      where('reporter', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
+  }
+
+  /** clearEffects
+   * delete all reports, posts, and comments by this user
+   *
+   */
+  public async clearEffects() {
+    if (!this.docRef) return;
+    const tasks: any[] = [];
+
+    // delete all their reports
+    (
+      await this.getReportsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+    ).forEach((rpt) => tasks.push(deleteDoc(rpt?.docRef!)));
+    // delete all their posts, which also deletes posts' reports & comments & comments' reports
+    (
+      await this.getPostsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+    ).forEach((post) => tasks.push(post?.delete()));
+    // delete all ther comments, which also deletes comments' reports
+    (
+      await this.getCommentsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+    ).forEach((cmt) => tasks.push(cmt?.delete()));
+
+    await Promise.all(tasks);
+  }
+
   /** delete
    * Delete this user's own account. Requires that the user to be deleted is the current auth user.
    * Deletes all relevant effects from the user such as:
@@ -272,11 +310,12 @@ export class User extends LazyObject {
     if (this.avatar && !this.avatar.pathEqual(DEFAULT_AVATAR_PATH))
       preTasks.push(deleteObject(this.avatar.getStorageRef()));
 
-    await Promise.all(preTasks);
-    console.log('Pre-tasks done');
+    // delete all posts, comments, and reports
+    await this.clearEffects();
 
-    // Now, all comments and posts we've ever made have *probably* been deleted.
-    // However, to be sure, we'll collect some tasks to do after the main transaction.
+    await Promise.all(preTasks);
+
+    // remove user from cache
     await runTransaction(db, async (transaction) => {
       // Definitions
       const cacheDocRef = doc(db, 'caches', 'users');
@@ -298,12 +337,9 @@ export class User extends LazyObject {
         })
       );
     });
-    console.log('Main transaction done');
 
     await deleteDoc(this.docRef!);
-    console.log('Document deleted');
     await deleteUser(auth.currentUser!);
-    console.log('Auth deleted');
   }
 
   /** clearAllReports
@@ -451,11 +487,12 @@ export class User extends LazyObject {
     if (user.avatar && !user.avatar.pathEqual(DEFAULT_AVATAR_PATH))
       preTasks.push(deleteObject(user.avatar.getStorageRef()));
 
-    await Promise.all(preTasks);
-    console.log('Pre-tasks done');
+    // delete all posts, comments, and reports
+    await this.clearEffects();
 
-    // Now, all comments and posts we've ever made have *probably* been deleted.
-    // However, to be sure, we'll collect some tasks to do after the main transaction.
+    await Promise.all(preTasks);
+
+    // remove user from cache
     await runTransaction(db, async (transaction) => {
       // Definitions
       const cacheDocRef = doc(db, 'caches', 'users');
@@ -472,7 +509,6 @@ export class User extends LazyObject {
         }),
       });
     });
-    console.log('Main transaction done');
 
     // update user status to banned
     await runTransaction(db, async (transaction: Transaction) => {
@@ -761,7 +797,7 @@ export class User extends LazyObject {
   /** getCommentsCursor()
    *  get a QueryCursor for a Users's comments starting from most recent
    */
-  public async getCommentsCursor() {
+  public getCommentsCursor() {
     return new QueryCursor(
       Comment,
       5,

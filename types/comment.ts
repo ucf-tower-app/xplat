@@ -4,16 +4,26 @@ import {
   DocumentReference,
   arrayRemove,
   arrayUnion,
+  collection,
   deleteDoc,
   doc,
+  orderBy,
   refEqual,
   runTransaction,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../Firebase';
-import { LazyObject, Post, User, containsRef } from '../types';
+import {
+  LazyObject,
+  Post,
+  QueryCursor,
+  Report,
+  User,
+  containsRef,
+} from '../types';
 
 export type FetchedComment = {
   author: User;
@@ -64,18 +74,41 @@ export class Comment extends LazyObject {
     return updateDoc(this.docRef!, { textContent: textContent });
   }
 
+  /** getReportsCursor
+   * get a QueryCursor for a Comment's reports starting from most recent
+   */
+  public getReportsCursor() {
+    return new QueryCursor(
+      Report,
+      5,
+      collection(db, 'reports'),
+      where('content', '==', this.docRef!),
+      orderBy('timestamp', 'desc')
+    );
+  }
+
   /** delete
    * Delete this comment
    */
   public async delete() {
-    // refreshingly simple :)
-    if (this.docRef) return deleteDoc(this.docRef);
+    // no longer refreshingly simple :(
+    if (!this.docRef) return;
+    await this.getData(true);
+    const tasks = [];
+
+    (
+      await this.getReportsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+    ).forEach((rpt) => tasks.push(deleteDoc(rpt?.docRef!)));
+
+    tasks.push(deleteDoc(this.docRef!));
+
+    return Promise.all(tasks);
   }
 
   /** checkShouldBeHidden
-  * Checks if this content should be hidden (if over 3 of reports)
-  * @returns true if this content should be hidden, false if not
-  */
+   * Checks if this content should be hidden (if over 3 of reports)
+   * @returns true if this content should be hidden, false if not
+   */
   public async checkShouldBeHidden() {
     if (!this.hasData) await this.getData();
     return this.reports!.length >= 3;
