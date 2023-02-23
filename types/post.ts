@@ -334,7 +334,6 @@ export class Post extends LazyObject {
 
     // Delete comments and reports on this post
     // It's fine because they'd have to be read to be deleted anyway :)
-    console.log('about to delete comments from posts');
     (
       await this.getCommentsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
     ).forEach((cmt) => tasks.push(cmt?.delete()));
@@ -355,8 +354,6 @@ export class Post extends LazyObject {
           .delete(this.docRef!);
       })
     );
-
-    console.log('deleting ' + tasks.length + ' posts & comments');
 
     return Promise.all(tasks);
   }

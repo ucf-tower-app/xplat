@@ -56,7 +56,7 @@ import {
   Send,
   UserStatus,
   containsRef,
-  removeRef
+  removeRef,
 } from '../types';
 
 export interface FetchedUser {
@@ -249,8 +249,8 @@ export class User extends LazyObject {
   }
 
   /** getReportsCursor
-  * get a QueryCursor for a Comment's reports starting from most recent
-  */
+   * get a QueryCursor for a Comment's reports starting from most recent
+   */
   public getReportsCursor() {
     return new QueryCursor(
       Report,
@@ -270,25 +270,17 @@ export class User extends LazyObject {
     const tasks: any[] = [];
 
     // delete all their reports
-    console.log('about to delete reports from user');
-
     (
-    await this.getReportsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+      await this.getReportsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
     ).forEach((rpt) => tasks.push(deleteDoc(rpt?.docRef!)));
-
-    console.log('about to delete all posts from user');
     // delete all their posts, which also deletes posts' reports & comments & comments' reports
     (
-    await this.getPostsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+      await this.getPostsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
     ).forEach((post) => tasks.push(post?.delete()));
-
-    console.log('about to delete all comments from user');
     // delete all ther comments, which also deletes comments' reports
     (
-    await this.getCommentsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
+      await this.getCommentsCursor().________getAll_CLOWNTOWN_LOTS_OF_READS()
     ).forEach((cmt) => tasks.push(cmt?.delete()));
-
-    console.log('clearing effects ' + tasks.length + ' tasks');
 
     await Promise.all(tasks);
   }
@@ -321,7 +313,6 @@ export class User extends LazyObject {
     await this.clearEffects();
 
     await Promise.all(preTasks);
-    console.log('Pre-tasks done');
 
     // remove user from cache
     await runTransaction(db, async (transaction) => {
@@ -345,12 +336,9 @@ export class User extends LazyObject {
         })
       );
     });
-    console.log('Main transaction done');
 
     await deleteDoc(this.docRef!);
-    console.log('Document deleted');
     await deleteUser(auth.currentUser!);
-    console.log('Auth deleted');
   }
 
   /** clearAllReports
@@ -471,7 +459,6 @@ export class User extends LazyObject {
       },
       { merge: true }
     );
-
   }
 
   /** banUser
@@ -503,7 +490,6 @@ export class User extends LazyObject {
     await this.clearEffects();
 
     await Promise.all(preTasks);
-    console.log('Pre-tasks done');
 
     // remove user from cache
     await runTransaction(db, async (transaction) => {
@@ -522,7 +508,6 @@ export class User extends LazyObject {
         }),
       });
     });
-    console.log('Main transaction done');
 
     // update user status to banned
     await runTransaction(db, async (transaction: Transaction) => {
