@@ -9,8 +9,8 @@ type FetchedModAction = {
   moderatorUsername: String;
   modReason: String;
   timestamp: Date;
-  userModerated: User;
-  moderator: User;
+  userModerated: User | undefined;
+  moderator: User | undefined;
 };
 
 export class ModAction extends LazyObject {
