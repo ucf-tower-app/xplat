@@ -395,27 +395,28 @@ export class User extends LazyObject {
     await this.checkIfSignedIn();
 
     if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
-
+    
     if (!content.hasData) await content.getData();
 
-    this.clearAllReports(content);
+    let deletionPromises = [];
+    deletionPromises.push(this.clearAllReports(content));
     // if content is a post or comment, delete it.
-    if (content instanceof Post || content instanceof Comment) content.delete();
+    if (content instanceof Post || content instanceof Comment) deletionPromises.push(content.delete());
     // if content is a user, remove their avatar & bio & displayname.
     else if (content instanceof User) {
-      content.deleteAvatar();
-      content.setBio(
-        'My profile content got deleted by a moderator and I am so embarrassed.'
-      );
-      content.setDisplayName('Disappointment');
+      deletionPromises.push(content.deleteAvatar());
+      deletionPromises.push(content.setBio('My profile content got deleted by a moderator and I am so embarrassed.'));
+      deletionPromises.push(content.setDisplayName('Disappointment'));
     }
 
     // add a modHistory entry
-    this.addModAction(
+    deletionPromises.push(this.addModAction(
       await content.getAuthor(),
       this,
       'Deleted reported content: ' + modReason
-    );
+    ));
+
+    await Promise.all(deletionPromises);
   }
 
   /** getDateMM_DD_YYYY
