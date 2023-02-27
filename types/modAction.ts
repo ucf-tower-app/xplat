@@ -4,6 +4,15 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { LazyObject, User } from '../types';
 
+type FetchedModAction = {
+  userModeratedUsername: String;
+  moderatorUsername: String;
+  modReason: String;
+  timestamp: Date;
+  userModerated: User | undefined;
+  moderator: User | undefined;
+};
+
 export class ModAction extends LazyObject {
   // Expected and required when getting data
   public userModeratedUsername?: String;
@@ -98,6 +107,19 @@ export class ModAction extends LazyObject {
   public async getTimestamp() {
     if (!this.hasData) await this.getData();
     return this.timestamp!;
+  }
+
+  public async fetch() {
+    if (!this.hasData) await this.getData();
+
+    return {
+      userModeratedUsername: this.userModeratedUsername!,
+      moderatorUsername: this.moderatorUsername!,
+      modReason: this.modReason!,
+      timestamp: this.timestamp!,
+      userModerated: this.userModerated,
+      moderator: this.moderator,
+    } as FetchedModAction;
   }
 }
 
