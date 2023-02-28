@@ -51,8 +51,8 @@ import {
   LazyStaticImage,
   Post,
   QueryCursor,
-  Report,
   removeRef,
+  Report,
   RouteClassifier,
   RouteType,
   Send,
@@ -395,26 +395,33 @@ export class User extends LazyObject {
     await this.checkIfSignedIn();
 
     if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
-    
+
     if (!content.hasData) await content.getData();
 
     let deletionPromises = [];
     deletionPromises.push(this.clearAllReports(content));
     // if content is a post or comment, delete it.
-    if (content instanceof Post || content instanceof Comment) deletionPromises.push(content.delete());
+    if (content instanceof Post || content instanceof Comment)
+      deletionPromises.push(content.delete());
     // if content is a user, remove their avatar & bio & displayname.
     else if (content instanceof User) {
       deletionPromises.push(content.deleteAvatar());
-      deletionPromises.push(content.setBio('My profile content got deleted by a moderator and I am so embarrassed.'));
+      deletionPromises.push(
+        content.setBio(
+          'My profile content got deleted by a moderator and I am so embarrassed.'
+        )
+      );
       deletionPromises.push(content.setDisplayName('Disappointment'));
     }
 
     // add a modHistory entry
-    deletionPromises.push(this.addModAction(
-      await content.getAuthor(),
-      this,
-      'Deleted reported content: ' + modReason
-    ));
+    deletionPromises.push(
+      this.addModAction(
+        await content.getAuthor(),
+        this,
+        'Deleted reported content: ' + modReason
+      )
+    );
 
     await Promise.all(deletionPromises);
   }
@@ -575,9 +582,9 @@ export class User extends LazyObject {
   }
 
   /** promoteOtherToManager
-   * Promote a user to Manager, if this is a manager. Downgrades this to employee.
+   * Promote an Employee to Manager, if this is a manager.
    * @param other: The user to promote
-   * @remarks Updates this and other's statuses
+   * @remarks Updates other's status
    */
   public async promoteOtherToManager(password: string, other: User) {
     await this.checkIfSignedIn();
@@ -598,14 +605,10 @@ export class User extends LazyObject {
       ) {
         other.status = UserStatus.Manager;
         transaction.update(other.docRef!, { status: UserStatus.Manager });
-        if (this.status! == UserStatus.Manager) {
-          this.status! = UserStatus.Employee;
-          transaction.update(this.docRef!, { status: UserStatus.Employee });
-        }
       }
 
       // add a modHistory entry
-      this.addModAction(other, this, 'Promoted this user to manager.');
+      this.addModAction(other, this, 'Promoted this employee to manager.');
     });
   }
 
