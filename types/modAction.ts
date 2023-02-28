@@ -123,6 +123,24 @@ export class ModAction extends LazyObject {
   }
 }
 
+export class ModActionCollection extends LazyObject {
+  public modActions: ModAction[] = [];
+  public day: Date | undefined;
+
+  public initWithDocumentData(data: DocumentData): void {
+    data.actions.forEach((doc: DocumentData) => {
+      console.log(doc);
+      const modAction = new ModAction();
+      modAction.initWithDocumentData(doc);
+      this.modActions.push(modAction);
+    });
+    this.day = new Date(
+      data.timestamp.seconds * 1000 + data.timestamp.nanoseconds / 1000000
+    );
+    this.hasData = true;
+  }
+}
+
 export class ModActionMock extends ModAction {
   constructor(
     userModeratedUsername: String,
