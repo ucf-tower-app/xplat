@@ -51,8 +51,8 @@ import {
   LazyStaticImage,
   Post,
   QueryCursor,
-  Report,
   removeRef,
+  Report,
   RouteClassifier,
   RouteType,
   Send,
@@ -395,26 +395,33 @@ export class User extends LazyObject {
     await this.checkIfSignedIn();
 
     if (this.status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
-    
+
     if (!content.hasData) await content.getData();
 
     let deletionPromises = [];
     deletionPromises.push(this.clearAllReports(content));
     // if content is a post or comment, delete it.
-    if (content instanceof Post || content instanceof Comment) deletionPromises.push(content.delete());
+    if (content instanceof Post || content instanceof Comment)
+      deletionPromises.push(content.delete());
     // if content is a user, remove their avatar & bio & displayname.
     else if (content instanceof User) {
       deletionPromises.push(content.deleteAvatar());
-      deletionPromises.push(content.setBio('My profile content got deleted by a moderator and I am so embarrassed.'));
+      deletionPromises.push(
+        content.setBio(
+          'My profile content got deleted by a moderator and I am so embarrassed.'
+        )
+      );
       deletionPromises.push(content.setDisplayName('Disappointment'));
     }
 
     // add a modHistory entry
-    deletionPromises.push(this.addModAction(
-      await content.getAuthor(),
-      this,
-      'Deleted reported content: ' + modReason
-    ));
+    deletionPromises.push(
+      this.addModAction(
+        await content.getAuthor(),
+        this,
+        'Deleted reported content: ' + modReason
+      )
+    );
 
     await Promise.all(deletionPromises);
   }
@@ -527,8 +534,13 @@ export class User extends LazyObject {
    * @param other: The user to approve
    * @remarks Updates other's status
    */
-  public async approveOtherUser(other: User) {
+  public async approveOtherUser(password: string, other: User) {
     await this.checkIfSignedIn();
+
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
+    );
 
     return runTransaction(db, async (transaction) => {
       await Promise.all([
@@ -553,8 +565,13 @@ export class User extends LazyObject {
    * @param other: The user to promote
    * @remarks Updates other's status
    */
-  public async promoteOtherToEmployee(other: User) {
+  public async promoteOtherToEmployee(password: string, other: User) {
     await this.checkIfSignedIn();
+
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
+    );
 
     return runTransaction(db, async (transaction) => {
       await Promise.all([
@@ -614,8 +631,13 @@ export class User extends LazyObject {
    * @param other: The user to demote
    * @remarks Updates other's status
    */
-  public async demoteEmployeeToApproved(other: User) {
+  public async demoteEmployeeToApproved(password: string, other: User) {
     await this.checkIfSignedIn();
+
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
+    );
 
     return runTransaction(db, async (transaction) => {
       await Promise.all([
@@ -641,8 +663,13 @@ export class User extends LazyObject {
    * @param other: The user to demote
    * @remarks Updates other's status
    */
-  public async demoteToVerified(other: User) {
+  public async demoteToVerified(password: string, other: User) {
     await this.checkIfSignedIn();
+
+    await reauthenticateWithCredential(
+      auth.currentUser!,
+      EmailAuthProvider.credential(auth.currentUser!.email!, password)
+    );
 
     return runTransaction(db, async (transaction) => {
       await Promise.all([
