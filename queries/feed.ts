@@ -59,14 +59,8 @@ export type MultiCursorResult = {
 export async function getInitialPageParam(
   fetchedUser: FetchedUser | undefined
 ) {
-  console.log(
-    'Get the first param',
-    fetchedUser === undefined,
-    fetchedUser?.followingList.length
-  );
   if (fetchedUser === undefined) return {};
   const slices = getSlices(fetchedUser.followingList);
-  console.log('Got', slices.length, 'slices');
   const data = await Promise.all(
     slices.map((slice) =>
       getDocs(
@@ -83,7 +77,6 @@ export async function getInitialPageParam(
       ).then((snap) => snap.docs)
     )
   );
-  console.log('Initial data', data.length);
   return { cursors: data, slices: slices } as MultiCursorPageParam;
 }
 
