@@ -1,14 +1,14 @@
 import {
-  CollectionReference,
-  DocumentReference,
-  QueryConstraint,
-  QueryDocumentSnapshot,
   collection,
+  CollectionReference,
   doc,
+  DocumentReference,
   getDocs,
   limit,
   orderBy,
   query,
+  QueryConstraint,
+  QueryDocumentSnapshot,
   startAfter,
   where,
 } from 'firebase/firestore';
@@ -224,6 +224,13 @@ export class PostCursorMerger implements Cursor<Post> {
 
   public async hasNext(): Promise<boolean> {
     return (await this.peekNext()) !== undefined;
+  }
+
+  public async getNext(count: number): Promise<Post[]> {
+    const res: Post[] = [];
+    while ((await this.hasNext()) && res.length < count)
+      res.push(await this.pollNext());
+    return res;
   }
 }
 
