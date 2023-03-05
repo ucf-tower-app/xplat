@@ -172,10 +172,10 @@ export class User extends LazyObject {
 
   /** removeReport
    * Remove this user's report of specified content
-   * This is for users to remove their own reports, employees use removeAllReports.
+   * This is for users to remove their own individual reports, employees use removeAllReports on mod dashboard.
    * @param content: the post or comment to be unreported
    */
-  public async removeReport(content: Post | Comment) {
+  public async removeReport(content: Post | Comment | User) {
     if (!content.hasData) await content.getData();
 
     // if not reported, return
