@@ -568,7 +568,7 @@ export class User extends LazyObject {
     });
 
     // add a modHistory entry
-    this.addModAction(other, this, 'Changed status of this user to ' + UserStatus[targetStatus] + ', reason: ' + reason);
+    this.addModAction(other, this, 'Changed status of this user from ' + UserStatus[otherStatus] + ' to ' + UserStatus[targetStatus] + ', reason: ' + reason);
   }
 
   /** checkIfSignedIn
