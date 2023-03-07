@@ -31,6 +31,7 @@ interface CreatePostArgs {
   videoContent?: { video: Blob; thumbnail: Blob };
   routeInfo?: { name: string; grade: string };
   isSend: boolean;
+  hasSpoilers: boolean;
 }
 
 export enum CreatePostError {
@@ -56,6 +57,7 @@ export async function createPost({
   videoContent = undefined,
   routeInfo = undefined,
   isSend = false,
+  hasSpoilers = false,
 }: CreatePostArgs) {
   await author.getData(true);
   var newPostSizeInBytes = 0;
@@ -113,6 +115,7 @@ export async function createPost({
       ...(forum && { forum: forum.docRef }),
       ...(routeInfo && { routeInfo: routeInfo }),
       ...(isSend && { isSend: isSend }),
+      ...(hasSpoilers && { hasSpoilers: hasSpoilers }),
       ...(imageContent && {
         imageContent: imageContent!.map(
           (_, idx) => 'posts/' + newPostDocRef.id + '_' + idx

@@ -47,6 +47,7 @@ export type FetchedPost = {
       }
     | undefined;
 
+  hasSpoilers: boolean;
   postObject: Post;
   isSend: boolean;
   shouldBeHidden: boolean;
@@ -65,6 +66,7 @@ export class Post extends LazyObject {
   public _isSaved?: boolean;
   public imageContent?: LazyStaticImage[];
   public _isSend?: boolean;
+  public spoilers?: boolean;
 
   // Might remain undefined even if has data
   public forum?: Forum;
@@ -89,6 +91,7 @@ export class Post extends LazyObject {
       (path: string) => new LazyStaticImage(path)
     );
     this._isSend = data.isSend ?? false;
+    this.spoilers = data.spoilers ?? false;
 
     if (data.routeInfo) this.routeInfo = data.routeInfo;
     if (data.forum) this.forum = new Forum(data.forum);
@@ -177,6 +180,7 @@ export class Post extends LazyObject {
             thumbnailUrl: await this.getVideoThumbnailUrl(),
           }
         : undefined,
+      hasSpoilers: await this.getSpoilers(),
       postObject: this,
       isSend: await this.isSend(),
       shouldBeHidden: await this.checkShouldBeHidden(),
@@ -244,6 +248,11 @@ export class Post extends LazyObject {
   public async getForum() {
     if (!this.hasData) await this.getData();
     return this.forum;
+  }
+
+  public async getSpoilers() {
+    if (!this.hasData) await this.getData();
+    return this.spoilers!;
   }
 
   public async hasForum() {
