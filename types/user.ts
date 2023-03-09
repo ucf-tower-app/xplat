@@ -80,6 +80,8 @@ export enum UserActionError {
   NotSignedIn = 'This action requires being signed in!',
   NotYourUser = 'You cannot perform this action on behalf of another user',
   NotAnEmployee = 'This action can only be performed by employees',
+  NotAManager = 'This action can only be performed by managers',
+  NotHighEnoughStatus = 'This action requires a higher status',
   IncorrectOldEmail = 'Must provide your old email!',
   MusntBeManager = 'Unable to perform this action as a manager account. Please ensure there are other manager accounts and demote this account.',
   AlreadyKnights = "Unable to change an account's email which is already using a knights email.",
@@ -529,12 +531,14 @@ export class User extends LazyObject {
     this.addModAction(user, this, 'Banned user: ' + modReason);
   }
 
-  /** approveOtherUser
-   * Approve another user, if this is an employee or higher and the other user is not Approved or higher
-   * @param other: The user to approve
-   * @remarks Updates other's status
+  /** editOtherStatus
+   * Edit another user's status (through web promote/demote actions).
+   * This is an action for employees and above only.
+   * Checks status levels again (already done on frontend) to make sure this change is valid.
+   * @param other: The user to change the status of
+   * @param targetStatus: The status to change the user to
    */
-  public async approveOtherUser(password: string, other: User) {
+  public async editOtherStatus(password: string, other: User, targetStatus: UserStatus, reason: String) {
     await this.checkIfSignedIn();
 
     await reauthenticateWithCredential(
@@ -542,147 +546,29 @@ export class User extends LazyObject {
       EmailAuthProvider.credential(auth.currentUser!.email!, password)
     );
 
-    return runTransaction(db, async (transaction) => {
-      await Promise.all([
-        this.updateWithTransaction(transaction),
-        other.updateWithTransaction(transaction),
-      ]);
-      if (
-        this.status! >= UserStatus.Employee &&
-        other.status! <= UserStatus.Verified
-      ) {
-        other.status = UserStatus.Approved;
-        transaction.update(other.docRef!, { status: UserStatus.Approved });
-      }
+    const status = await this.getStatus();
+    const otherStatus = await other.getStatus();
 
-      // add a modHistory entry
-      this.addModAction(other, this, 'Promoted this user to approved.');
+    // user must be at least an employee to even continue
+    if (status! < UserStatus.Employee) throw UserActionError.NotAnEmployee;
+
+    // user has to be above or equal to the status they're changing other to
+    if (status! < targetStatus) throw UserActionError.NotHighEnoughStatus;
+
+    // more specifically, user has to be a manager to promote other to employee or manager
+    if (status! < UserStatus.Manager && targetStatus >= UserStatus.Employee) throw UserActionError.NotAManager;
+
+    // employees cannot demote other employees or managers
+    if (status! === UserStatus.Employee && otherStatus! >= UserStatus.Employee) throw UserActionError.NotAManager;
+
+    await runTransaction(db, async (transaction) => {
+      await this.updateWithTransaction(transaction);
+      other.status = targetStatus;
+      transaction.update(other.docRef!, { status: targetStatus });
     });
-  }
 
-  /** promoteOtherToEmployee
-   * Promote a user to Employee, if this is a manager
-   * @param other: The user to promote
-   * @remarks Updates other's status
-   */
-  public async promoteOtherToEmployee(password: string, other: User) {
-    await this.checkIfSignedIn();
-
-    await reauthenticateWithCredential(
-      auth.currentUser!,
-      EmailAuthProvider.credential(auth.currentUser!.email!, password)
-    );
-
-    return runTransaction(db, async (transaction) => {
-      await Promise.all([
-        this.updateWithTransaction(transaction),
-        other.updateWithTransaction(transaction),
-      ]);
-      if (
-        this.status! >= UserStatus.Manager &&
-        other.status! <= UserStatus.Approved
-      ) {
-        other.status = UserStatus.Employee;
-        transaction.update(other.docRef!, { status: UserStatus.Employee });
-      }
-
-      // add a modHistory entry
-      this.addModAction(other, this, 'Promoted this user to employee.');
-    });
-  }
-
-  /** promoteOtherToManager
-   * Promote an Employee to Manager, if this is a manager.
-   * @param other: The user to promote
-   * @remarks Updates other's status
-   */
-  public async promoteOtherToManager(password: string, other: User) {
-    await this.checkIfSignedIn();
-
-    await reauthenticateWithCredential(
-      auth.currentUser!,
-      EmailAuthProvider.credential(auth.currentUser!.email!, password)
-    );
-
-    return runTransaction(db, async (transaction) => {
-      await Promise.all([
-        this.updateWithTransaction(transaction),
-        other.updateWithTransaction(transaction),
-      ]);
-      if (
-        this.status! >= UserStatus.Manager &&
-        other.status! == UserStatus.Employee
-      ) {
-        other.status = UserStatus.Manager;
-        transaction.update(other.docRef!, { status: UserStatus.Manager });
-      }
-
-      // add a modHistory entry
-      this.addModAction(other, this, 'Promoted this employee to manager.');
-    });
-  }
-
-  /** demoteEmployeeToApproved
-   * Downgrade an employee to Approved, if this is a manager
-   * @param other: The user to demote
-   * @remarks Updates other's status
-   */
-  public async demoteEmployeeToApproved(password: string, other: User) {
-    await this.checkIfSignedIn();
-
-    await reauthenticateWithCredential(
-      auth.currentUser!,
-      EmailAuthProvider.credential(auth.currentUser!.email!, password)
-    );
-
-    return runTransaction(db, async (transaction) => {
-      await Promise.all([
-        this.updateWithTransaction(transaction),
-        other.updateWithTransaction(transaction),
-      ]);
-      if (
-        this.status! >= UserStatus.Manager &&
-        other.status! == UserStatus.Employee
-      ) {
-        other.status = UserStatus.Approved;
-        transaction.update(other.docRef!, { status: UserStatus.Approved });
-      }
-
-      // add a modHistory entry
-      this.addModAction(other, this, 'Demoted this employee to approved.');
-    });
-  }
-
-  /** demoteToVerified
-   * Downgrade an employee to an Verified employee, if this is an employee.
-   * This essentially sets a user to read-only, and will serve as a soft ban.
-   * @param other: The user to demote
-   * @remarks Updates other's status
-   */
-  public async demoteToVerified(password: string, other: User) {
-    await this.checkIfSignedIn();
-
-    await reauthenticateWithCredential(
-      auth.currentUser!,
-      EmailAuthProvider.credential(auth.currentUser!.email!, password)
-    );
-
-    return runTransaction(db, async (transaction) => {
-      await Promise.all([
-        this.updateWithTransaction(transaction),
-        other.updateWithTransaction(transaction),
-      ]);
-      if (
-        this.status! >= UserStatus.Manager &&
-        other.status! <= UserStatus.Employee
-      ) {
-        other.status = UserStatus.Verified;
-        transaction.update(other.docRef!, { status: UserStatus.Verified });
-      }
-
-      // add a modHistory entry
-      this.addModAction(other, this, 'Demoted this user to verified.');
-    });
+    // add a modHistory entry
+    this.addModAction(other, this, 'Changed status of this user from ' + UserStatus[otherStatus] + ' to ' + UserStatus[targetStatus] + ', reason: ' + reason);
   }
 
   /** checkIfSignedIn
