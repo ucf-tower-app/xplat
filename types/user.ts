@@ -959,14 +959,6 @@ export class User extends LazyObject {
     return containsRef(this.following!, user);
   }
 
-  /** getBlockedCursor
-   * get an ArrayCursor for a User's blocked
-   */
-  public async getBlockedCursor() {
-    if (!this.hasData) await this.getData();
-    return new ArrayCursor(this.blocked!);
-  }
-
   /** isBlocked
    * @returns true if this has the other user blocked
    */
