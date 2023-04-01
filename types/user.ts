@@ -68,6 +68,8 @@ export interface FetchedUser {
   avatarUrl: string;
   followingList: User[];
   followersList: User[];
+  blockedList: User[];
+  blockedByList: User[];
   totalPostSizeInBytes: number;
   bestBoulder: RouteClassifier | undefined;
   bestToprope: RouteClassifier | undefined;
@@ -99,6 +101,8 @@ export class User extends LazyObject {
   // Filled with defaults if not present when getting data
   public following?: User[];
   public followers?: User[];
+  public blocked?: User[];
+  public blockedBy?: User[];
   public avatar?: LazyStaticImage;
   public totalPostSizeInBytes?: number;
   public totalSends?: Map<RouteType, number>;
@@ -116,6 +120,12 @@ export class User extends LazyObject {
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
     this.followers = (data.followers ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.blocked = (data.blocked ?? []).map(
+      (ref: DocumentReference<DocumentData>) => new User(ref)
+    );
+    this.blockedBy = (data.blockedBy ?? []).map(
       (ref: DocumentReference<DocumentData>) => new User(ref)
     );
 
@@ -248,6 +258,40 @@ export class User extends LazyObject {
         following: arrayRemove(other.docRef),
       }).then(() => removeRef(this.following!, other)),
       updateDoc(other.docRef!, { followers: arrayRemove(this.docRef) }),
+    ]);
+  }
+
+  /** blockUser
+   * Block a user.
+   * @param other: The User to block
+   * @remarks this blocked list & other's blockedBy list will be updated
+   */
+  public async blockUser(other: User) {
+    if (!this.hasData) await this.getData();
+    if (containsRef(this.blocked!, other)) return;
+
+    return Promise.all([
+      updateDoc(this.docRef!, {
+        blocked: arrayUnion(other.docRef),
+      }).then(() => this.blocked!.push(other)),
+      updateDoc(other.docRef!, { blockedBy: arrayUnion(this.docRef) }),
+    ]);
+  }
+
+  /** unblockUser
+   * Unblock a user.
+   * @param other: The User to unblock
+   * @remarks this blocked list & other's blockedBy list will be updated
+   */
+  public async unblockUser(other: User) {
+    if (!this.hasData) await this.getData();
+    if (!containsRef(this.blocked!, other)) return;
+
+    return Promise.all([
+      updateDoc(this.docRef!, {
+        blocked: arrayRemove(other.docRef),
+      }).then(() => removeRef(this.blocked!, other)),
+      updateDoc(other.docRef!, { blockedBy: arrayRemove(this.docRef) }),
     ]);
   }
 
@@ -848,6 +892,8 @@ export class User extends LazyObject {
         : await this.getAvatarUrl(),
       followingList: this.following ?? [],
       followersList: this.followers ?? [],
+      blockedList: this.blocked ?? [],
+      blockedByList: this.blockedBy ?? [],
       totalPostSizeInBytes: await this.getTotalPostSizeInBytes(),
       bestBoulder: await this.getBestSendClassifier(RouteType.Boulder),
       bestToprope: await this.getBestSendClassifier(RouteType.Toprope),
@@ -911,6 +957,22 @@ export class User extends LazyObject {
   public async isFollowing(user: User) {
     if (!this.hasData) await this.getData();
     return containsRef(this.following!, user);
+  }
+
+  /** getBlockedCursor
+   * get an ArrayCursor for a User's blocked
+   */
+  public async getBlockedCursor() {
+    if (!this.hasData) await this.getData();
+    return new ArrayCursor(this.blocked!);
+  }
+
+  /** isBlocked
+   * @returns true if this has the other user blocked
+   */
+  public async isBlocked(user: User) {
+    if (!this.hasData) await this.getData();
+    return containsRef(this.blocked!, user);
   }
 
   /** getTotalPostSizeInBytes()
