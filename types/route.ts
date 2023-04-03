@@ -457,7 +457,7 @@ export class Route extends LazyObject {
         ...(classifier && { classifier: classifier }),
         ...(description && { description: description }),
         ...(tags && { tags: tags }),
-        ...(setter && { setter: setter }),
+        ...(setter && { setter: setter.docRef! }),
         ...(rope && { rope: rope }),
         ...(color && { color: color }),
         ...(naturalRules && { naturalRules: naturalRules }),
