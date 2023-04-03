@@ -263,8 +263,8 @@ export class User extends LazyObject {
 
   /** blockUser
    * Block a user.
-   * @param other: The User to block
-   * @remarks this blocked list & other's blockedBy list will be updated
+   * @param other: The User to block. Removes follow association between the two users.
+   * @remarks updates this user's blocked list & other's blockedBy list, as well as both users' following/followers lists.
    */
   public async blockUser(other: User) {
     if (!this.hasData) await this.getData();
@@ -272,9 +272,15 @@ export class User extends LazyObject {
 
     return Promise.all([
       updateDoc(this.docRef!, {
-        blocked: arrayUnion(other.docRef),
+        blocked: arrayUnion(other.docRef!),
+        followers: arrayRemove(other.docRef!),
+        following: arrayRemove(other.docRef!),
       }).then(() => this.blocked!.push(other)),
-      updateDoc(other.docRef!, { blockedBy: arrayUnion(this.docRef) }),
+      updateDoc(other.docRef!, { 
+        blockedBy: arrayUnion(this.docRef!),
+        followers: arrayRemove(this.docRef!),
+        following: arrayRemove(this.docRef!),
+      }),
     ]);
   }
 
