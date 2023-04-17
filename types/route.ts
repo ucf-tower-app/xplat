@@ -68,6 +68,25 @@ enum Semester {
   Fall = 'Fall',
 }
 
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+function getMonth(date: Date) {
+  return MONTHS[date.getMonth()];
+}
+
 function getSemester(date: Date) {
   const month = date.getMonth();
   if (month <= 5) return Semester.Spring;
@@ -79,9 +98,7 @@ export function getMonthlyLeaderboardDocRef(date: Date) {
   return doc(
     db,
     'leaderboards',
-    date.toLocaleString('default', { month: 'long' }) +
-      '_' +
-      date.getFullYear().toString()
+    getMonth(date) + '_' + date.getFullYear().toString()
   );
 }
 
