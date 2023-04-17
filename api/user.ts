@@ -259,6 +259,10 @@ export async function getUserCache() {
     .allUsers as UserCacheData;
 }
 
+export function buildUserReferenceIdSet(userCache: UserCacheData) {
+  return new Set(userCache.map((entry) => entry.ref.id));
+}
+
 export function buildUserCacheMap(userCache: UserCacheData) {
   return new Map(
     userCache.map((entry) => [
