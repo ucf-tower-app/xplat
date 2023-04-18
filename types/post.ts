@@ -15,6 +15,8 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  query,
+  getCountFromServer,
 } from 'firebase/firestore';
 import { deleteObject, getMetadata } from 'firebase/storage';
 import 'react-native-get-random-values';
@@ -356,6 +358,15 @@ export class Post extends LazyObject {
     );
 
     return Promise.all(tasks);
+  }
+
+  // Returns the number of comments on this post at the cost of num_comments / 1000 reads
+  public async getCommentCount() {
+    const q = query(
+      collection(db, 'comments'),
+      where('post', '==', this.docRef!)
+    );
+    return (await getCountFromServer(q)).data().count;
   }
 }
 
