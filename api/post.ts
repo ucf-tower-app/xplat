@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   Transaction,
 } from 'firebase/firestore';
-import { ref, uploadBytes, UploadResult } from 'firebase/storage';
+import { ref, uploadBytesResumable, UploadTask } from 'firebase/storage';
 import { db, MAX_USER_CONTENT_BYTES, storage } from '../Firebase';
 import { Forum, Post, User } from '../types';
 
@@ -74,16 +74,16 @@ export async function createPost({
   }
 
   const newPostDocRef = doc(collection(db, 'posts'));
-  const uploads: Promise<UploadResult>[] = [];
+  const uploads: UploadTask[] = [];
   if (videoContent) {
     uploads.push(
-      uploadBytes(
+      uploadBytesResumable(
         ref(storage, 'posts/videos/' + newPostDocRef.id + '_video'),
         videoContent.video
       )
     );
     uploads.push(
-      uploadBytes(
+      uploadBytesResumable(
         ref(storage, 'posts/videos/' + newPostDocRef.id + '_thumbnail'),
         videoContent.thumbnail
       )
@@ -92,7 +92,10 @@ export async function createPost({
   if (imageContent) {
     imageContent.forEach((img, idx) =>
       uploads.push(
-        uploadBytes(ref(storage, 'posts/' + newPostDocRef.id + '_' + idx), img)
+        uploadBytesResumable(
+          ref(storage, 'posts/' + newPostDocRef.id + '_' + idx),
+          img
+        )
       )
     );
   }
