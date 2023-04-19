@@ -367,7 +367,7 @@ export class User extends LazyObject {
 
     await Promise.all(preTasks);
 
-    // remove user from cache
+    // remove user from cache, follow lists, and block lists
     await runTransaction(db, async (transaction) => {
       // Definitions
       const cacheDocRef = doc(db, 'caches', 'users');
@@ -383,9 +383,24 @@ export class User extends LazyObject {
           ref: this.docRef!,
         }),
       });
+      this.following?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          followers: arrayRemove(this.docRef!),
+        })
+      );
       this.followers?.forEach((user) =>
         transaction.update(user.docRef!, {
           following: arrayRemove(this.docRef!),
+        })
+      );
+      this.blocked?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          blockedBy: arrayRemove(this.docRef!),
+        })
+      );
+      this.blockedBy?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          blocked: arrayRemove(this.docRef!),
         })
       );
     });
@@ -552,7 +567,7 @@ export class User extends LazyObject {
 
     await Promise.all(preTasks);
 
-    // remove user from cache
+    // remove user from cache, follow lists, and block lists
     await runTransaction(db, async (transaction) => {
       // Definitions
       const cacheDocRef = doc(db, 'caches', 'users');
@@ -568,6 +583,26 @@ export class User extends LazyObject {
           ref: user.docRef!,
         }),
       });
+      this.following?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          followers: arrayRemove(this.docRef!),
+        })
+      );
+      this.followers?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          following: arrayRemove(this.docRef!),
+        })
+      );
+      this.blocked?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          blockedBy: arrayRemove(this.docRef!),
+        })
+      );
+      this.blockedBy?.forEach((user) =>
+        transaction.update(user.docRef!, {
+          blocked: arrayRemove(this.docRef!),
+        })
+      );
     });
 
     // update user status to banned
